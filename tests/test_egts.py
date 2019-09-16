@@ -41,9 +41,6 @@ packet_short_subrecord_data = b"\x01\x00\x00\x0b\x00\x23\x00\x00\x00\x01\x99\x18
 packet_unknown_service = b"\x01\x00\x00\x0b\x00\x23\x00\x00\x00\x01\x99\x18\x00\x00\x00\x01\xef\x00\x00\x00\x03\x02" \
                          b"\x10\x15\x00\xd2\x31\x2b\x10\x4f\xba\x3a\x9e\xd2\x27\xbc\x35\x03\x00\x00\xb2\x00\x00\x00" \
                          b"\x00\x00\x0b\x21"
-packet_unknown_subrecord_type = b"\x01\x00\x00\x0b\x00\x23\x00\x00\x00\x01\x99\x18\x00\x00\x00\x01\xef\x00\x00\x00" \
-                                b"\x02\x02\x11\x15\x00\xd2\x31\x2b\x10\x4f\xba\x3a\x9e\xd2\x27\xbc\x35\x03\x00\x00" \
-                                b"\xb2\x00\x00\x00\x00\x00\x69\xba"
 
 reply_packet = bytes([1, 0, 3, 11, 0, 16, 0, 9, 0, 0, 167, 9, 0, 0, 6, 0, 9, 0, 24, 2, 2, 0, 3, 0, 9, 0, 0, 0, 195])
 nav_packet1 = bytes(
@@ -168,12 +165,6 @@ class TestEgts(unittest.TestCase):
         self.assertEqual(str(error.exception), "Unknown service (sst = 3; srt = 16)")
         self.assertEqual(error.exception.error_code, EGTS_PC_SRVC_UNKN)
 
-    def test_unknown_subrecord_type(self):
-        with self.assertRaises(EgtsPcSrUnkn) as error:
-            Egts(packet_unknown_subrecord_type)
-        self.assertEqual(str(error.exception), "Unknown service subrecord type (sst = 2; srt = 17)")
-        self.assertEqual(error.exception.error_code, EGTS_PC_SR_UNKN)
-
     def test_auth_packet(self):
         egts = Egts(auth_packet)
         self.assertEqual(egts.packet_type, EGTS_PT_APPDATA)
@@ -224,7 +215,6 @@ class TestEgts(unittest.TestCase):
         [record] = egts.records
         reply = egts.reply(egts.pid, record.num)
         self.assertEqual(reply, reply_packet1)
-
 
 if __name__ == '__main__':
     unittest.main()
