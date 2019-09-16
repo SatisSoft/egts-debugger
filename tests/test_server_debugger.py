@@ -47,7 +47,7 @@ class TestServerDebugger(unittest.TestCase):
         sever_thread.join()
         output = mystdout.getvalue()
         sys.stdout = old_stdout
-        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 1, did: 1007}]}]
+        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 0, did: 1007}]}]
 Received egts packet: Packet ID: 0; Packet Type: 1; records: [{RecNum: 0, sst: 2, ID: 239, subrecords: [{Type: 16, vld: True, ntm: 1533570258000, lat: 55.62752532903746, long: 37.782409656276556, speed: 0, dir: 178, busy: 0, src: 0}]}]
 Received egts packet: Packet ID: 0; Packet Type: 1; records: [{RecNum: 0, sst: 2, ID: 239, subrecords: [{Type: 16, vld: True, ntm: 1533570258000, lat: 55.62752532903746, long: 37.782409656276556, speed: 0, dir: 178, busy: 0, src: 0}]}]
 SUCCESS. EGTS connection test succeeded. Received 3 packets.
@@ -64,7 +64,7 @@ Please check in logs if data in packets is correct.
         sever_thread.join()
         output = mystdout.getvalue()
         sys.stdout = old_stdout
-        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 1, did: 1007}]}]
+        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 0, did: 1007}]}]
 Received egts packet: Packet ID: 0; Packet Type: 1; records: [{RecNum: 0, sst: 2, ID: 239, subrecords: [{Type: 16, vld: True, ntm: 1533570258000, lat: 55.62752532903746, long: 37.782409656276556, speed: 0, dir: 178, busy: 0, src: 0}]}]
 ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 138. Data check sum error (Calculated crc: 27112, crc in packet: 36202)
 """
@@ -79,7 +79,7 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 138. D
         sever_thread.join()
         output = mystdout.getvalue()
         sys.stdout = old_stdout
-        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 1, did: 1007}]}]
+        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 0, did: 1007}]}]
 Received egts packet: Packet ID: 0; Packet Type: 1; records: [{RecNum: 0, sst: 2, ID: 239, subrecords: [{Type: 16, vld: True, ntm: 1533570258000, lat: 55.62752532903746, long: 37.782409656276556, speed: 0, dir: 178, busy: 0, src: 0}]}]
 Received egts packet: Packet ID: 0; Packet Type: 1; records: [{RecNum: 0, sst: 2, ID: 239, subrecords: [{Type: 16, vld: True, ntm: 1533570258000, lat: 55.62752532903746, long: 37.782409656276556, speed: 0, dir: 178, busy: 0, src: 0}]}]
 ERROR. Received only 3 packets, expected 5 packets.
@@ -94,7 +94,7 @@ ERROR. Received only 3 packets, expected 5 packets.
         sever_thread.join()
         output = mystdout.getvalue()
         sys.stdout = old_stdout
-        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 1, did: 1007}]}]
+        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 0, did: 1007}]}]
 ERROR. EGTS connection test failed: received only auth packet
 """
         self.assertEqual(msg, output)
@@ -107,7 +107,7 @@ ERROR. EGTS connection test failed: received only auth packet
         sever_thread.join()
         output = mystdout.getvalue()
         sys.stdout = old_stdout
-        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 1, did: 1007}]}]
+        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 0, did: 1007}]}]
 ERROR. EGTS connection test failed: Expected EGTS_SR_POS_DATA packet
 """
         self.assertEqual(msg, output)
@@ -144,7 +144,7 @@ ERROR. EGTS connection test failed: The first packet must be EGTS_SR_DISPATCHER_
         sever_thread.join()
         output = mystdout.getvalue()
         sys.stdout = old_stdout
-        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 1, did: 1007}]}]
+        msg = """First packet is correct: Packet ID: 1; Packet Type: 1; records: [{RecNum: 1, sst: 1, subrecords: [{Type: 5, dt: 0, did: 1007}]}]
 ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 128. Unsupported protocol version (PRV not found)
 """
         self.assertEqual(msg, output)
@@ -171,8 +171,8 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 128. U
     def start_test_client_success(self):
         sock = socket.socket()
         sock.connect((self.host, self.port))
-        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x01\xef" \
-                      b"\x03\x00\x00\x56\x67"
+        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x00\xef" \
+                      b"\x03\x00\x00\x07\xcd"
         sock.send(auth_packet)
         _ = sock.recv(1024)
         nav_packet = b"\x01\x00\x00\x0b\x00\x23\x00\x00\x00\x01\x99\x18\x00\x00\x00\x01\xef\x00\x00\x00\x02\x02\x10" \
@@ -187,8 +187,8 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 128. U
     def start_test_client_second_nav_incorrect(self):
         sock = socket.socket()
         sock.connect((self.host, self.port))
-        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x01\xef" \
-                      b"\x03\x00\x00\x56\x67"
+        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x00\xef" \
+                      b"\x03\x00\x00\x07\xcd"
         sock.send(auth_packet)
         _ = sock.recv(1024)
         nav_packet = b"\x01\x00\x00\x0b\x00\x23\x00\x00\x00\x01\x99\x18\x00\x00\x00\x01\xef\x00\x00\x00\x02\x02\x10" \
@@ -206,8 +206,8 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 128. U
     def start_test_client_only_auth(self):
         sock = socket.socket()
         sock.connect((self.host, self.port))
-        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x01\xef" \
-                      b"\x03\x00\x00\x56\x67"
+        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x00\xef" \
+                      b"\x03\x00\x00\x07\xcd"
         sock.send(auth_packet)
         _ = sock.recv(1024)
         sock.close()
@@ -215,8 +215,8 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 128. U
     def start_test_client_two_auth(self):
         sock = socket.socket()
         sock.connect((self.host, self.port))
-        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x01" \
-                      b"\xef\x03\x00\x00\x56\x67"
+        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x00" \
+                      b"\xef\x03\x00\x00\x07\xcd"
         sock.send(auth_packet)
         _ = sock.recv(1024)
         sock.send(auth_packet)
@@ -235,8 +235,8 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 128. U
     def start_test_first_incorrect(self):
         sock = socket.socket()
         sock.connect((self.host, self.port))
-        auth_packet = b"\x01\x00\x00\x0b\x00\x1f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x01\xef" \
-                      b"\x03\x00\x00\x56\x67"
+        auth_packet = b"\x01\x00\x00\x0b\x00\x1f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x00\xef" \
+                      b"\x03\x00\x00\07\xcd"
         sock.send(auth_packet)
         _ = sock.recv(1024)
         sock.close()
@@ -244,8 +244,8 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 128. U
     def start_test_nav_incorrect(self):
         sock = socket.socket()
         sock.connect((self.host, self.port))
-        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x01" \
-                      b"\xef\x03\x00\x00\x56\x67"
+        auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x00" \
+                      b"\xef\x03\x00\x00\x07\xcd"
         sock.send(auth_packet)
         _ = sock.recv(1024)
         nav_packet = b"\x3a\x9e\xd2\x27\xbc\x35\x03\x00\x00\xb2\x00\x00\x00\x00\x00\x6a\x8d"
