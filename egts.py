@@ -278,15 +278,13 @@ class EgtsRecord:
         if srt == EGTS_SR_DISPATCHER_IDENTITY:
             return EgtsSrDispatcherIdentity(buff, srt)
         else:
-            message = "sst = {0}; srt = {1}".format(self.sst, srt)
-            raise EgtsPcSrUnkn(message)
+            return UnknownSubRecord(srt)
 
     def _analyze_subrecord_tele(self, buff, srt):
         if srt == EGTS_SR_POS_DATA:
             return EgtsSrPosData(buff, srt)
         else:
-            message = "sst = {0}; srt = {1}".format(self.sst, srt)
-            raise EgtsPcSrUnkn(message)
+            return UnknownSubRecord(srt)
 
     def record_to_string(self):
         s = "{" + "RecNum: {0}, sst: {1}, ".format(self.num, self.sst)
@@ -298,8 +296,12 @@ class EgtsRecord:
 
     def subrecords_to_string(self):
         s = ""
+        i = 1
         for subrecord in self.subrecords:
             s += subrecord.subrecord_to_string()
+            if i != len(self.subrecords):
+                s += ","
+            i = i + 1
         return s
 
 
@@ -343,6 +345,15 @@ class EgtsSrPosData(EgtsSubRecord):
             " dir: {5}, busy: {6}, src: {7}".format(self.vld, self.ntm, self.lat,
                                                     self.long, self.speed, self.dir,
                                                     self.busy, self.src) + "}"
+        return s
+
+class UnknownSubRecord(EgtsSubRecord):
+    """Contains information about subrecord unknown by egts-debugger"""
+    def __init__(self, srt):
+        super().__init__(srt)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + "}"
         return s
 
 

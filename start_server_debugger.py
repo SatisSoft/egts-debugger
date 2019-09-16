@@ -21,7 +21,8 @@ parser.add_argument("-p", "--port", default=9090, type=port_type, help="listenin
 parser.add_argument("--hostname", default='', help="hostname")
 parser.add_argument("-n", "--number", default=10, type=n_type,
                     help="number of packets to receive before finish the debugger")
+parser.add_argument("-d", "--dispatcher", default=-1, help="dispatcher id")
 args = parser.parse_args()
 
-egts_conn_test = EgtsServerDebugger(args.hostname, args.port, args.number)
+egts_conn_test = EgtsServerDebugger(args.hostname, args.port, args.number, args.dispatcher)
 egts_conn_test.start_listening()
