@@ -5,8 +5,11 @@ EGTS_PC_OK = 0
 EGTS_TRANSPORT_LAYER_MIN_HEADER_LEN = 11
 EGTS_SERVICE_LAYER_MIN_RECORD_HEADER_LEN = 7
 EGTS_SERVICE_LAYER_MIN_SUBRECORD_LEN = 3
-crc8_func = crcmod.mkCrcFun(0x131, initCrc=0xFF, rev=False)
-crc16_func = crcmod.mkCrcFun(0x11021, initCrc=0xFFFF, rev=False)
+# polynomial are taken from EGTS documentation
+# x^8 + x^5 + x^4 + 1 = 0x0131
+crc8_func = crcmod.mkCrcFun(0x0131, initCrc=0xFF, rev=False)
+# x^16 + x^12 + x^5 + 1 = 0x011021
+crc16_func = crcmod.mkCrcFun(0x011021, initCrc=0xFFFF, rev=False)
 EGTS_PT_RESPONSE = 0
 EGTS_PT_APPDATA = 1
 timestamp_20100101_000000_utc = 1262304000
@@ -93,6 +96,19 @@ class Egts:
         self._proc_service_layer(buffer[index + self.header_len:])
         self.rest_buff = buffer[index + self.header_len + len(self.body)+2:]
 
+    @staticmethod
+    def form_bin(pid, data):
+        body = Egts._body_bin(data)
+        packet = Egts._packet_bin(pid, body)
+        return packet
+
+    def reply(self, ans_pid, ans_rid):
+        subrecords = self._reply_record()
+        pack_id = self.pid.to_bytes(2, 'little')
+        body = pack_id + b'\x00' + Egts._make_record(self.service, ans_rid, subrecords)
+        reply = self._packet_bin(ans_pid, body)
+        return reply
+
     def _proc_transport_layer(self, buffer):
         if len(buffer) < EGTS_TRANSPORT_LAYER_MIN_HEADER_LEN:
             raise EgtsPcInvdatalen("Transport layer")
@@ -134,7 +150,7 @@ class Egts:
         self.records = []
         rest_buf = self.body
         while len(rest_buf) > 0:
-            rec = EgtsRecord(rest_buf)
+            rec = EgtsRecord.parse(rest_buf)
             self.records.append(rec)
             rest_buf = rest_buf[rec.rec_len:]
         if self.records:
@@ -148,7 +164,7 @@ class Egts:
             self.records = []
             rest_buf = self.body[3:]
             while len(rest_buf) > 0:
-                rec = EgtsRecord(rest_buf)
+                rec = EgtsRecord.parse(rest_buf)
                 self.records.append(rec)
                 rest_buf = rest_buf[rec.rec_len:]
             if self.records:
@@ -156,6 +172,16 @@ class Egts:
                 self.service = rec.sst
         else:
             raise EgtsPcInvdatalen("Response SFRD")
+
+    @staticmethod
+    def _packet_bin(ans_pid, body):
+        bcs = crc16_func(body)
+        data_len = len(body)
+        header = Egts._make_header(ans_pid, data_len)
+        hcs = crc8_func(header)
+        bcs_bin = bcs.to_bytes(2, 'little')
+        reply = header + bytes([hcs]) + body + bcs_bin
+        return reply
 
     @staticmethod
     def _index(buffer):
@@ -171,16 +197,21 @@ class Egts:
             records.append(subrecords)
         return records
 
-    def reply(self, ans_pid, ans_rid):
-        subrecords = self._reply_subrecords()
-        data_len = len(subrecords) + 10
-        body = self._make_body(subrecords, ans_rid)
-        bcs = crc16_func(body)
-        header = self._make_header(ans_pid, data_len)
-        hcs = crc8_func(header)
-        bcs_bin = bcs.to_bytes(2, 'little')
-        reply = header + bytes([hcs]) + body + bcs_bin
-        return reply
+    def _reply_record(self):
+        res = b""
+        for record in self.records:
+            rec_id = record.rid
+            reply_subrec = bytes([0x00, 0x03, 0x00, rec_id % 256, rec_id//256, 0])
+            res += reply_subrec
+        return res
+
+    @staticmethod
+    def _body_bin(data):
+        res = b""
+        for rec in data:
+            record = rec.form_bin(rec)
+            res += record
+        return res
 
     @staticmethod
     def _make_header(ans_pid, data_len):
@@ -189,20 +220,12 @@ class Egts:
         header = b'\x01\x00\x03\x0b\x00' + rec_len + ans_rid_bin + bytes([EGTS_PT_RESPONSE])
         return header
 
-    def _make_body(self, subrecords, ans_rid):
-        pack_id = self.pid.to_bytes(2, 'little')
+    @staticmethod
+    def _make_record(service, ans_rid, subrecords):
         sub_len = len(subrecords).to_bytes(2, 'little')
         rid = ans_rid.to_bytes(2, 'little')
-        body = pack_id + b'\x00' + sub_len + rid + b'\x18' + bytes([self.service]) + bytes([self.service]) + subrecords
+        body = sub_len + rid + b'\x18' + bytes([service]) + bytes([service]) + subrecords
         return body
-
-    def _reply_subrecords(self):
-        res = b""
-        for record in self.records:
-            rec_id = record.num
-            reply_subrec = bytes([0x00, 0x03, 0x00, rec_id % 256, rec_id//256, 0])
-            res += reply_subrec
-        return res
 
     def __str__(self):
         s = "Packet ID: {0}; Packet Type: {1}; ".format(self.pid, self.packet_type)
@@ -219,14 +242,24 @@ class Egts:
         return records
 
 
+
 class EgtsRecord:
     """Contains information about EGTS record"""
 
-    def __init__(self, buffer):
+    def __init__(self, **kwargs):
+        self.rid = kwargs['rid']
+        self.sst = kwargs['sst']
+        if 'id' in kwargs:
+            self.id = kwargs['id']
+        self.rec_len = kwargs['rec_len']
+        self.subrecords = kwargs['subrecords']
+
+    @classmethod
+    def parse(cls, buffer):
         if len(buffer) < EGTS_SERVICE_LAYER_MIN_RECORD_HEADER_LEN:
             raise EgtsPcIncHeaderForm("Record is shorter then EGTS_SERVICE_LAYER_MIN_RECORD_HEADER_LEN")
-        self.data_len = int.from_bytes(buffer[:2], byteorder='little')
-        self.num = int.from_bytes(buffer[2:4], byteorder='little')
+        data_len = int.from_bytes(buffer[:2], byteorder='little')
+        rid = int.from_bytes(buffer[2:4], byteorder='little')
         tmfe = buffer[4] >> 2 & 1
         evfe = buffer[4] >> 1 & 1
         obfe = buffer[4] & 1
@@ -234,16 +267,20 @@ class EgtsRecord:
         header_len = EGTS_SERVICE_LAYER_MIN_RECORD_HEADER_LEN + opt_len
         if len(buffer) < header_len:
             raise EgtsPcIncHeaderForm("Record is shorter then EGTS_SERVICE_LAYER_MIN_RECORD_HEADER_LEN + opt_len")
-        self.sst = buffer[5 + opt_len]
+        sst = buffer[5 + opt_len]
+        kwargs = {'rid': rid, 'sst': sst, 'subrecords': []}
         if obfe:
-            self.id = int.from_bytes(buffer[5:9], byteorder='little')
-        self.rec_len = header_len + self.data_len
-        self.subrecords = []
-        if self.data_len > 0:
-            if len(buffer) < self.rec_len:
+            id = int.from_bytes(buffer[5:9], byteorder='little')
+            kwargs['id'] = id
+        rec_len = header_len + data_len
+        kwargs['rec_len'] = rec_len
+        rec = cls(**kwargs)
+        if data_len > 0:
+            if len(buffer) < rec_len:
                 raise EgtsPcInvdatalen("Record")
-            data = buffer[header_len:header_len+self.data_len]
-            self._analyze_subrecords(data)
+            data = buffer[header_len:header_len+data_len]
+            rec._analyze_subrecords(data)
+        return rec
 
     def _analyze_subrecords(self, buff):
         while len(buff) > 0:
@@ -276,20 +313,18 @@ class EgtsRecord:
 
     def _analyze_subrecord_auth(self, buff, srt):
         if srt == EGTS_SR_DISPATCHER_IDENTITY:
-            return EgtsSrDispatcherIdentity(buff, srt)
+            return EgtsSrDispatcherIdentity.parse(buff, srt)
         else:
-            message = "sst = {0}; srt = {1}".format(self.sst, srt)
-            raise EgtsPcSrUnkn(message)
+            return UnknownSubRecord(srt)
 
     def _analyze_subrecord_tele(self, buff, srt):
         if srt == EGTS_SR_POS_DATA:
-            return EgtsSrPosData(buff, srt)
+            return EgtsSrPosData.parse(buff)
         else:
-            message = "sst = {0}; srt = {1}".format(self.sst, srt)
-            raise EgtsPcSrUnkn(message)
+            return UnknownSubRecord(srt)
 
     def record_to_string(self):
-        s = "{" + "RecNum: {0}, sst: {1}, ".format(self.num, self.sst)
+        s = "{" + "RecNum: {0}, sst: {1}, ".format(self.rid, self.sst)
         if hasattr(self, "id"):
             s = s + "ID: " + str(self.id) + ", "
         subrecords = self.subrecords_to_string()
@@ -298,9 +333,28 @@ class EgtsRecord:
 
     def subrecords_to_string(self):
         s = ""
+        i = 1
         for subrecord in self.subrecords:
             s += subrecord.subrecord_to_string()
+            if i != len(self.subrecords):
+                s += ","
+            i = i + 1
         return s
+
+    def form_bin(self):
+        b = b''
+        for subrecord in self.subrecords:
+            b += subrecord.form_bin()
+        len_bin = len(b).to_bytes(2, 'little')
+        rid_bin = self.rid.to_bytes(2, 'little')
+        flags = 0
+        id_bin = b''
+        if self.id:
+            flags = 1
+            id_bin = self.id.to_bytes(4, 'little')
+        sst_bin = self.sst.to_bytes(2, 'little')
+        record = len_bin + rid_bin + bytes(flags) + id_bin + sst_bin + sst_bin + b
+        return record
 
 
 class EgtsSubRecord:
@@ -316,26 +370,64 @@ class EgtsSubRecord:
 class EgtsSrPosData(EgtsSubRecord):
     """Contains information about EGTS_SR_POS_DATA"""
 
-    def __init__(self, buffer, srt):
-        super().__init__(srt)
-        lahs = buffer[12] >> 5 & 1
+    def __init__(self, **kwargs):
+        super().__init__(EGTS_SR_POS_DATA)
+        self.vld = kwargs.get('vld')
+        self.ntm = kwargs.get('ntm')
+        self.lat = kwargs.get('lat')
+        self.long = kwargs.get('long')
+        self.speed = kwargs.get('speed')
+        self.dir = kwargs.get('dir')
+        self.busy = kwargs.get('busy')
+        self.src = kwargs.get('src')
+        self.mv = kwargs.get('mv')
+        self.bb = kwargs.get('bb')
+
+    @classmethod
+    def parse(cls, buffer):
         lohs = buffer[12] >> 6 & 1
+        lahs = buffer[12] >> 5 & 1
+        mv = buffer[12] >> 4 & 1
+        bb = buffer[12] >> 3 & 1
         if buffer[12] & 1:
-            self.vld = True
+            vld = True
         else:
-            self.vld = False
-        self.ntm = (int.from_bytes(buffer[0:4], byteorder='little') + timestamp_20100101_000000_utc) * 1000
-        self.lat = (int.from_bytes(buffer[4:8], byteorder='little') * 90 / 0xffffffff) * (1 - 2 * lahs)
-        self.long = (int.from_bytes(buffer[8:12], byteorder='little') * 180 / 0xffffffff) * (1 - 2 * lohs)
+            vld = False
+        ntm = (int.from_bytes(buffer[0:4], byteorder='little') + timestamp_20100101_000000_utc) * 1000
+        lat = (int.from_bytes(buffer[4:8], byteorder='little') * 90 / 0xffffffff) * (1 - 2 * lahs)
+        long = (int.from_bytes(buffer[8:12], byteorder='little') * 180 / 0xffffffff) * (1 - 2 * lohs)
         spd_hi = buffer[14] & 0b00111111
         spd_lo = buffer[13]
-        self.speed = (spd_hi*256 + spd_lo) // 10
+        speed = (spd_hi*256 + spd_lo) // 10
         dir_hi = buffer[14] >> 7
         dir_lo = buffer[15]
-        self.dir = dir_hi*256 + dir_lo
+        dir = dir_hi*256 + dir_lo
         din = buffer[19]
-        self.busy = din >> 7
-        self.src = buffer[20]
+        busy = din >> 7
+        src = buffer[20]
+        kwargs = {'vld': vld, 'ntm': ntm, 'lat': lat, 'long': long, 'speed': speed, 'dir': dir, 'busy': busy,
+                  'src': src, 'mv': mv, 'bb': bb}
+        return cls(**kwargs)
+
+    def form_bin(self):
+        time = self.ntm.to_bytes(4, 'little')
+        lat = (abs(self.lat) / 90 * 0xffffffff).to_bytes(4, 'little')
+        long = (abs(self.long) / 180 * 0xffffffff).to_bytes(4, 'little')
+        lohs = 0
+        lahs = 0
+        if self.long < 0:
+            lohs = 1
+        if self.lat < 0:
+            lahs = 1
+        flags = lohs * 64 | lahs * 32 | self.mv * 16 | self.bb * 8 | 0x02 | self.vld
+        spd_hi = self.speed * 10 / 256
+        spd_lo = self.speed * 10 % 256
+        bear_hi = self.dir / 256
+        bear_lo = self.dir % 256
+        flags2 = ((bear_hi << 0x07) | (spd_hi & 0x3F)) & 0xBF
+        subrec = b'\x10\x00\x15' + time + lat + long + bytes(flags) + bytes(spd_lo) + bytes(flags2) + bytes(bear_lo) \
+                 + b'\x00\x00\x00\x00' + bytes(self.src)
+        return subrec
 
     def subrecord_to_string(self):
         s = "{" + super().subrecord_to_string() + ", "
@@ -343,6 +435,15 @@ class EgtsSrPosData(EgtsSubRecord):
             " dir: {5}, busy: {6}, src: {7}".format(self.vld, self.ntm, self.lat,
                                                     self.long, self.speed, self.dir,
                                                     self.busy, self.src) + "}"
+        return s
+
+class UnknownSubRecord(EgtsSubRecord):
+    """Contains information about subrecord unknown by egts-debugger"""
+    def __init__(self, srt):
+        super().__init__(srt)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + "}"
         return s
 
 
@@ -363,10 +464,17 @@ class EgtsResponse(EgtsSubRecord):
 class EgtsSrDispatcherIdentity(EgtsSubRecord):
     """Contains information about EGTS_SR_DISPATCHER_IDENTITY """
 
-    def __init__(self, buffer, srt):
+    def __init__(self, srt, **kwargs):
         super().__init__(srt)
-        self.dt = buffer[0]
-        self.did = int.from_bytes(buffer[1:5], byteorder='little')
+        self.dt = kwargs.get('dt')
+        self.did = kwargs.get('did')
+
+    @classmethod
+    def parse(cls, buffer, srt):
+        dt = buffer[0]
+        did = int.from_bytes(buffer[1:5], byteorder='little')
+        kwargs = {'dt': dt, 'did': did}
+        return cls(srt, **kwargs)
 
     def subrecord_to_string(self):
         s = "{" + super().subrecord_to_string() + ", "
