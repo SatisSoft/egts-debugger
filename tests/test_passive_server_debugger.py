@@ -5,7 +5,7 @@ import unittest
 import sys
 from io import StringIO
 
-from egtsdebugger.server_debugger import EgtsServerDebugger
+from egtsdebugger.passive_server_debugger import PassiveEgtsServerDebugger
 from egtsdebugger.egts import *
 
 auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x00\xef" \
@@ -13,8 +13,8 @@ auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38
 incorrect_reply = bytes([1, 0, 3, 11, 0, 16, 0, 9, 0, 0, 167, 9, 0, 0, 6, 0, 9, 0, 24, 2, 2, 0, 3, 0, 9, 0, 0, 0, 196])
 reply_packet = bytes([1, 0, 3, 11, 0, 16, 0, 9, 0, 0, 167, 9, 0, 0, 6, 0, 9, 0, 24, 2, 2, 0, 3, 0, 9, 0, 0, 0, 195])
 
-class TestServerDebugger(unittest.TestCase):
-    """Tests for EgtsServerDebugger class"""
+class TestPassiveServerDebugger(unittest.TestCase):
+    """Tests for EgtsPassiveServerDebugger class"""
 
     def setUp(self):
         self.port = 9093
@@ -184,7 +184,7 @@ ERROR. Sent 1 packets including 5 records, but received no replies from EGTS ser
             filename = kwargs['filename']
         else:
             filename = self.filename
-        egts_conn_test = EgtsServerDebugger(self.host, self.port, self.num, filename, self.dispatcher)
+        egts_conn_test = PassiveEgtsServerDebugger(self.host, self.port, self.num, filename, self.dispatcher)
         debug_thread = threading.Thread(target=egts_conn_test.start)
         debug_thread.start()
         time.sleep(0.00001)

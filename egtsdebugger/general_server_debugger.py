@@ -23,7 +23,7 @@ class ErrorReceivingFromClient(ValueError):
     pass
 
 
-class EgtsServerDebugger:
+class GeneralEgtsServerDebugger:
     """Provides functional for testing EGTS server"""
 
     def __init__(self, host, port, num, filename, dispatcher):
@@ -50,47 +50,17 @@ class EgtsServerDebugger:
         self._start_client()
 
     def _start_client(self):
-        s = socket.socket()
-        s.bind((self.host, self.port))
-        s.listen(1)
-        conn, addr = s.accept()
-        with conn:
-            data = conn.recv(1024)
-            if not data:
-                print("ERROR. server has closed the connection. No packets were received.")
-                s.close()
-                return
-            try:
-                egts = self._validate_first_packet(data)
-                reply = egts.reply(self.pid, self.rid)
-                conn.send(reply)
-                self.pid += 1
-                self.rid += 1
-                self._send_receive_loop(conn)
-                self._receive_loop(conn)
-                self._compare_got_replies_with_expected()
-            except EgtsParsingError as err:
-                print("ERROR. EGTS connection test failed: error parsing EGTS packet. Error code {0}. {1}.".format(
-                    err.error_code, err))
-            except IncorrectFirstPacket:
-                print("ERROR. First packet is incorrect.")
-            except ReceivedNoData:
-                print("ERROR. Sent {0} packets including {1} records, but received no replies from EGTS "
-                      "server.".format(self.pid - 1, self.rid - 1))
-            except socket.error as err:
-                print("ERROR. Got socket error:", err)
-            except Exception as err:
-                print("ERROR. Got unknown error", err)
-            finally:
-                s.close()
+        pass
 
     def _send_receive_loop(self, conn):
         len_of_data = len(self.test_data)
-        while self.rid < len_of_data + 1:
+        rid_on_start = self.rid
+        last_rid = rid_on_start + len_of_data
+        while self.rid < last_rid:
                 if self.rid + 100 > len_of_data:
-                    packet = self._form_packet(len_of_data + 1)
+                    packet = self._form_packet(last_rid, rid_on_start)
                 else:
-                    packet = self._form_packet(self.rid + 100 + 1)
+                    packet = self._form_packet(self.rid + 100 + rid_on_start, rid_on_start)
                 conn.send(packet)
                 replies = conn.recv(1024)
                 if not replies:
@@ -98,11 +68,12 @@ class EgtsServerDebugger:
                 self._parse_replies(replies)
 
 
+
     def _receive_loop(self, conn):
         expected_replies_len = len(self.expected_replies)
         start = time.time()
         with conn:
-            while True:
+            while len(self.got_replies) != expected_replies_len:
                 conn.settimeout(1)
                 if expected_replies_len == len(self.got_replies):
                     return
@@ -116,10 +87,10 @@ class EgtsServerDebugger:
         packets = self._parse_packets(self.buff + replies)
         self._get_approved_ids(packets)
 
-    def _form_packet(self, end):
+    def _form_packet(self, end, rid_on_start):
         records = []
         while self.rid < end:
-            data = self.test_data[self.rid-1]
+            data = self.test_data[self.rid-rid_on_start]
             subrecords = [self._dict_to_subrecord(data)]
             records.append(self._make_record(data['id'], subrecords))
             self.rid += 1
@@ -210,8 +181,11 @@ class EgtsServerDebugger:
         if len(missed_results) != 0:
             print("Error: did't receive reply on packets {0}".format(missed_results))
         else:
-            print("SUCCESS. EGTS connection test succeeded. Sent", self.pid-1, "packets including", self.rid-1,
-                  "records.", "Confirmation for all records were received.")
+            self._print_success_message()
+
+    def _print_success_message(self):
+        print("SUCCESS. EGTS connection test succeeded. Sent", self.pid-1, "packets including", self.rid-1,
+              "records.", "Confirmation for all records were received.")
 
     def _validate_first_packet(self, data):
         egts = Egts(data)

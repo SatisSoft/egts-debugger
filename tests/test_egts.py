@@ -221,17 +221,14 @@ class TestEgts(unittest.TestCase):
         self.assertEqual(reply, reply_packet1)
 
     def test_form_bin(self):
-        print(nav_packet2)
         egts = Egts(nav_packet2)
-        print(egts)
         bin_packet = Egts.form_bin(0, egts.records)
-        print(bin_packet)
         self.assertEqual(bin_packet, nav_packet2)
 
-    # def test_long_packet(self):
-    #     egts = Egts(long_packet)
-    #     print(egts)
-    #     print("len of records:", len(egts.records))
+    def test_long_packet(self):
+        egts = Egts(long_packet)
+        print(egts)
+        self.assertEqual(len(egts.records), 101)
 
 
 if __name__ == '__main__':

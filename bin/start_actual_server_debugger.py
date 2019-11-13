@@ -1,6 +1,6 @@
 import argparse
 
-from egtsdebugger.server_debugger import EgtsServerDebugger
+from egtsdebugger.passive_server_debugger import PassiveEgtsServerDebugger
 
 def port_type(x):
     x = int(x)
@@ -27,5 +27,5 @@ parser.add_argument("-d", "--dispatcher", default=-1, help="dispatcher id")
 
 args = parser.parse_args()
 
-egts_client_test = EgtsServerDebugger(args.hostname, args.port, args.number, args.data, args.dispatcher)
+egts_client_test = PassiveEgtsServerDebugger(args.hostname, args.port, args.number, args.data, args.dispatcher)
 egts_client_test.start()
