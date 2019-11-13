@@ -4,8 +4,8 @@ from egtsdebugger.passive_server_debugger import PassiveEgtsServerDebugger
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--port", default=9090, type=port_type, help="listening port")
 parser.add_argument("--hostname", default='', help="hostname")
-parser.add_argument("--data", default="data/test.csv", help="file with test data")
-parser.add_argument("-d", "--dispatcher", default=-1, help="dispatcher id")
+parser.add_argument("--data", default="data/2000_records.csv", help="file with test data")
+parser.add_argument("-d", "--dispatcher", default=999, help="dispatcher id")
 
 args = parser.parse_args()
 
