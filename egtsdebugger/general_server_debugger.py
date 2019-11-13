@@ -26,12 +26,9 @@ class ErrorReceivingFromClient(ValueError):
 class GeneralEgtsServerDebugger:
     """Provides functional for testing EGTS server"""
 
-    def __init__(self, host, port, num, filename, dispatcher):
+    def __init__(self, host, port, filename):
         self.host = host
         self.port = port
-        self.dispatcher = dispatcher
-        self.num = 0
-        self.max = num
         self.pid = 0
         self.rid = 0
         self.filename = filename

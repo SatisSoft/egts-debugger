@@ -19,7 +19,6 @@ class TestActiveServerDebugger(unittest.TestCase):
     def setUp(self):
         self.port = 9093
         self.host = 'localhost'
-        self.num = 10
         self.dispatcher = 1007
         self.filename = '../data/2000_records.csv'
 
@@ -148,7 +147,7 @@ Error: did't receive reply on packets [0, 1, 2, 3, 4]
             filename = kwargs['filename']
         else:
             filename = self.filename
-        egts_conn_test = ActiveEgtsServerDebugger(self.host, self.port, self.num, filename, self.dispatcher)
+        egts_conn_test = ActiveEgtsServerDebugger(self.host, self.port, filename)
         debug_thread = threading.Thread(target=egts_conn_test.start)
         debug_thread.start()
         return debug_thread
@@ -168,6 +167,7 @@ Error: did't receive reply on packets [0, 1, 2, 3, 4]
         conn, addr = sock.accept()
         msg = bytes(555)
         conn.send(msg)
+        time.sleep(0.0001)
         conn.close()
         sock.close()
 

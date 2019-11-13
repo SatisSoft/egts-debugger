@@ -1,5 +1,6 @@
 from egtsdebugger.general_server_debugger import *
 
+
 class ActiveEgtsServerDebugger(GeneralEgtsServerDebugger):
     """Provides functional for testing EGTS server which initiates connection to EGTS client"""
 

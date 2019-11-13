@@ -5,11 +5,14 @@ from egtsdebugger.egts import *
 class IncorrectNumberOfDispIdentity(ValueError):
     pass
 
+
 class IncorrectFirstPacket(ValueError):
     pass
 
+
 class IncorrectNavPacket(ValueError):
     pass
+
 
 class UnexpectedDispatcherIdentity(ValueError):
     pass
@@ -47,16 +50,21 @@ class EgtsClientDebugger:
                 self.rid += 1
                 self._loop(conn)
             except EgtsParsingError as err:
-                msg = "ERROR. EGTS connection test failed: error parsing EGTS packet. Error code {0}. {1}.".format(err.error_code, err)
+                msg = "ERROR. EGTS connection test failed: error parsing EGTS packet. Error code {0}. {1}.".format(
+                    err.error_code, err)
                 print(msg)
             except IncorrectNumberOfDispIdentity:
-                print("ERROR. EGTS connection test failed: The first packet must contain one EGTS_SR_DISPATCHER_IDENTITY subrecord.")
+                print(
+                    "ERROR. EGTS connection test failed: The first packet must contain one "
+                    "EGTS_SR_DISPATCHER_IDENTITY subrecord.")
             except IncorrectFirstPacket:
                 print("ERROR. First packet is incorrect.")
             except IncorrectNavPacket:
                 print("ERROR. EGTS connection test failed: Expected EGTS_SR_POS_DATA packet.")
             except UnexpectedDispatcherIdentity:
-                print("ERROR. Pass your Dispatcher ID as script arguments (-d option). If you do not have a Dispatcher ID, set it to 1.")
+                print(
+                    "ERROR. Pass your Dispatcher ID as script arguments (-d option). If you do not have a Dispatcher "
+                    "ID, set it to 1.")
             except Exception as err:
                 print("ERROR. EGTS connection test failed:", err)
             else:
@@ -143,5 +151,3 @@ class EgtsClientDebugger:
     def _validate_nav_packet(data):
         egts = Egts(data)
         return egts
-
-

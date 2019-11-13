@@ -227,7 +227,6 @@ class TestEgts(unittest.TestCase):
 
     def test_long_packet(self):
         egts = Egts(long_packet)
-        print(egts)
         self.assertEqual(len(egts.records), 101)
 
 

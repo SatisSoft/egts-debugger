@@ -19,7 +19,6 @@ class TestPassiveServerDebugger(unittest.TestCase):
     def setUp(self):
         self.port = 9093
         self.host = 'localhost'
-        self.num = 10
         self.dispatcher = 1007
         self.filename = '../data/2000_records.csv'
 
@@ -184,7 +183,7 @@ ERROR. Sent 1 packets including 5 records, but received no replies from EGTS ser
             filename = kwargs['filename']
         else:
             filename = self.filename
-        egts_conn_test = PassiveEgtsServerDebugger(self.host, self.port, self.num, filename, self.dispatcher)
+        egts_conn_test = PassiveEgtsServerDebugger(self.host, self.port, filename, self.dispatcher)
         debug_thread = threading.Thread(target=egts_conn_test.start)
         debug_thread.start()
         time.sleep(0.00001)

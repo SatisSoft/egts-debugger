@@ -4,6 +4,10 @@ from egtsdebugger.general_server_debugger import *
 class PassiveEgtsServerDebugger(GeneralEgtsServerDebugger):
     """Provides functional for testing a EGTS server which initiates connection with the EGTS client"""
 
+    def __init__(self, host, port, filename, dispatcher):
+        super().__init__(host, port, filename)
+        self.dispatcher = dispatcher
+
     def _start_client(self):
         s = socket.socket()
         s.bind((self.host, self.port))
