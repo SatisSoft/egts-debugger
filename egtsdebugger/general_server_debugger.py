@@ -59,6 +59,7 @@ class GeneralEgtsServerDebugger:
                 else:
                     packet = self._form_packet(self.rid + 100 + rid_on_start, rid_on_start)
                 conn.send(packet)
+                conn.settimeout(1)
                 replies = conn.recv(1024)
                 if not replies:
                     raise ReceivedNoData
@@ -71,7 +72,6 @@ class GeneralEgtsServerDebugger:
         start = time.time()
         with conn:
             while len(self.got_replies) != expected_replies_len:
-                conn.settimeout(1)
                 if expected_replies_len == len(self.got_replies):
                     return
                 now = time.time()
