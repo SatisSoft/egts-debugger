@@ -29,6 +29,7 @@ class EgtsServerDebugger:
 
     def start_listening(self):
         s = socket.socket()
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((self.host, self.port))
         s.listen(1)
         conn, addr = s.accept()
