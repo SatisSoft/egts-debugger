@@ -5,12 +5,12 @@ import unittest
 import sys
 from io import StringIO
 
-from server_debugger import EgtsServerDebugger
-from egts import *
+from egtsdebugger.client_debugger import EgtsClientDebugger
+from egtsdebugger.egts import *
 
 
-class TestServerDebugger(unittest.TestCase):
-    """Tests for EgtsServerDebugger class"""
+class TestClientDebugger(unittest.TestCase):
+    """Tests for EgtsClientDebugger class"""
 
     def setUp(self):
         self.port = 9092
@@ -21,7 +21,7 @@ class TestServerDebugger(unittest.TestCase):
     def test_disconnect(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_disconnect()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -31,7 +31,7 @@ class TestServerDebugger(unittest.TestCase):
     def test_wrong_message(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_wrong_message()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -43,7 +43,7 @@ class TestServerDebugger(unittest.TestCase):
         self.num = 3
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_success()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -60,7 +60,7 @@ Please check in logs if data in packets is correct.
         self.num = 3
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_second_nav_incorrect()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -75,7 +75,7 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 138. D
         self.num = 5
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_success()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -90,7 +90,7 @@ ERROR. Received only 3 packets, expected 5 packets.
     def test_only_auth(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_only_auth()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -103,7 +103,7 @@ ERROR. EGTS connection test failed: received only auth packet.
     def test_two_auth(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_two_auth()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -117,7 +117,7 @@ ERROR. Received only 2 packets, expected 10 packets.
     def test_first_not_auth(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_first_not_auth()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -130,7 +130,7 @@ ERROR. EGTS connection test failed: The first packet must contain one EGTS_SR_DI
     def test_first_incorrect(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_first_incorrect()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -141,7 +141,7 @@ ERROR. EGTS connection test failed: The first packet must contain one EGTS_SR_DI
     def test_nav_incorrect(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_nav_incorrect()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -155,7 +155,7 @@ ERROR. EGTS connection test failed: error parsing EGTS packet. Error code 128. U
         self.num = 3
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_wrong_dispatcher_type()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -170,7 +170,7 @@ ERROR. First packet is incorrect.
         self.num = 3
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_wrong_dispatcher_id()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -186,7 +186,7 @@ ERROR. First packet is incorrect.
         self.did = 2116
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_success_with_unknown_record()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -204,7 +204,7 @@ Please check in logs if data in packets is correct.
             self.did = -1
             old_stdout = sys.stdout
             sys.stdout = mystdout = StringIO()
-            sever_thread = self.start_server_thread()
+            sever_thread = self.start_debugger_thread()
             self.start_test_client_without_did()
             sever_thread.join()
             output = mystdout.getvalue()
@@ -221,7 +221,7 @@ Please check in logs if data in packets is correct.
         self.did = -1
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_server_thread()
+        sever_thread = self.start_debugger_thread()
         self.start_test_client_wrong_without_specifing_dt()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -231,12 +231,12 @@ ERROR. Pass your Dispatcher ID as script arguments (-d option). If you do not ha
 """
         self.assertEqual(msg, output)
 
-    def start_server_thread(self):
-        egts_conn_test = EgtsServerDebugger(self.host, self.port, self.num, self.did)
-        server_thread = threading.Thread(target=egts_conn_test.start_listening)
-        server_thread.start()
+    def start_debugger_thread(self):
+        egts_conn_test = EgtsClientDebugger(self.host, self.port, self.num, self.did)
+        debugger_thread = threading.Thread(target=egts_conn_test.start_listening)
+        debugger_thread.start()
         time.sleep(0.00001)
-        return server_thread
+        return debugger_thread
 
     def start_test_client_disconnect(self):
         sock = socket.socket()
