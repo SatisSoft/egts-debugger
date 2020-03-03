@@ -20,7 +20,7 @@ class TestActiveServerDebugger(unittest.TestCase):
         self.port = 9093
         self.host = 'localhost'
         self.dispatcher = 1007
-        self.filename = '../data/2000_records.csv'
+        self.filename = 'data/2000_records.csv'
 
     def test_connection_error(self):
         old_stdout = sys.stdout
@@ -48,7 +48,7 @@ class TestActiveServerDebugger(unittest.TestCase):
     def test_success_1(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_debugger_thread(**{'filename': "../data/1_record.csv"})
+        sever_thread = self.start_debugger_thread(**{'filename': "data/1_record.csv"})
         self.start_test_server_success(1)
         sever_thread.join()
         output = mystdout.getvalue()
@@ -60,7 +60,7 @@ class TestActiveServerDebugger(unittest.TestCase):
     def test_success_5(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_debugger_thread(**{'filename': "../data/5_records.csv"})
+        sever_thread = self.start_debugger_thread(**{'filename': "data/5_records.csv"})
         self.start_test_server_success(1)
         sever_thread.join()
         output = mystdout.getvalue()
@@ -96,7 +96,7 @@ class TestActiveServerDebugger(unittest.TestCase):
     def test_unexpected_reply_success(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_debugger_thread(**{'filename': "../data/5_records.csv"})
+        sever_thread = self.start_debugger_thread(**{'filename': "data/5_records.csv"})
         self.start_test_unexpected_reply_success()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -109,7 +109,7 @@ SUCCESS. EGTS connection test succeeded. Sent 1 packets including 5 records. Con
     def test_unexpected_reply_failed(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_debugger_thread(**{'filename': "../data/5_records.csv"})
+        sever_thread = self.start_debugger_thread(**{'filename': "data/5_records.csv"})
         self.start_test_unexpected_reply_failed()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -122,7 +122,7 @@ Error: did't receive reply on packets [0, 1, 2, 3, 4]
     def test_did_not_received_replies(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_debugger_thread(**{'filename': "../data/5_records.csv"})
+        sever_thread = self.start_debugger_thread(**{'filename': "data/5_records.csv"})
         self.start_test_did_not_received_replies()
         sever_thread.join()
         output = mystdout.getvalue()
@@ -133,7 +133,7 @@ Error: did't receive reply on packets [0, 1, 2, 3, 4]
     def test_socket_error(self):
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
-        sever_thread = self.start_debugger_thread(**{'filename': "../data/2000_records.csv"})
+        sever_thread = self.start_debugger_thread(**{'filename': "data/2000_records.csv"})
         self.start_test_socket_error()
         sever_thread.join()
         output = mystdout.getvalue()
