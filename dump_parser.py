@@ -15,15 +15,18 @@ if __name__ == "__main__":
   f = open(args.file, "rb")
   buff = f.read()
 
-  start = buff.find(b'\x01\x00\x03\x0b')
-  if start < 0:
-    logging.error("EGTS packets not found: %s", buff)
-    buff = b''
-  elif start != 0:
-    logging.error("First EGTS packet incomplete: %s", buff[:start])
-    buff = buff[start:]  
-
   while len(buff) > 0:
-    egts = Egts(buff)
-    print(egts)
-    buff = egts.rest_buff
+    try:
+      egts = Egts(buff)
+    except EgtsParsingError as err:
+      logging.error("Wrong EGTS package: %s", err)
+      offset = buff.find(b'\x01')
+
+      if offset < 0:
+        logging.error("EGTS packets not found: %s", buff)
+        buff = b''
+
+      buff = buff[offset+1:]
+    else:
+      print(egts)
+      buff = egts.rest_buff
