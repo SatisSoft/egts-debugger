@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import logging
+import sys
 from egtsdebugger.egts import *
 
 if __name__ == "__main__":
@@ -11,7 +11,6 @@ if __name__ == "__main__":
   parser.add_argument("-f", "--file", help="file with data", required=True)
   args = parser.parse_args()
 
-
   f = open(args.file, "rb")
   buff = f.read()
 
@@ -19,11 +18,11 @@ if __name__ == "__main__":
     try:
       egts = Egts(buff)
     except EgtsParsingError as err:
-      logging.error("Wrong EGTS package: %s", err)
+      print("Wrong EGTS package: ", err, file=sys.stderr)
       offset = buff.find(b'\x01')
 
       if offset < 0:
-        logging.error("EGTS packets not found: %s", buff)
+        print("EGTS packets not found: ", buff, file=sys.stderr)
         buff = b''
 
       buff = buff[offset+1:]
