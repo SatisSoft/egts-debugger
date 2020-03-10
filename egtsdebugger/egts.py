@@ -17,6 +17,9 @@ EGTS_AUTH_SERVICE = 1
 EGTS_TELEDATA_SERVICE = 2
 EGTS_SR_DISPATCHER_IDENTITY = 5
 EGTS_SR_POS_DATA = 16
+EGTS_SR_AD_SENSORS_DATA = 18
+EGTS_SR_ABS_AN_SENS_DATA = 24
+EGTS_SR_LIQUID_LEVEL_SENSOR = 27
 
 EGTS_SR_DISPATCHER_IDENTITY_DESCR = "EGTS_SR_DISPATCHER_IDENTITY"
 
@@ -321,6 +324,12 @@ class EgtsRecord:
     def _analyze_subrecord_tele(self, buff, srt):
         if srt == EGTS_SR_POS_DATA:
             return EgtsSrPosData.parse(buff)
+        elif srt == EGTS_SR_AD_SENSORS_DATA:
+            return EgtsSrAdSensorsData.parse(buff)
+        elif srt == EGTS_SR_ABS_AN_SENS_DATA:
+            return EgtsSrAbsAnSensData.parse(buff)
+        elif srt == EGTS_SR_LIQUID_LEVEL_SENSOR:
+            return EgtsSrLiquidLevelSensor.parse(buff)
         else:
             return UnknownSubRecord(srt)
 
@@ -438,6 +447,99 @@ class EgtsSrPosData(EgtsSubRecord):
                                                     self.long, self.speed, self.dir,
                                                     self.busy, self.src) + "}"
         return s
+
+class EgtsSrAdSensorsData(EgtsSubRecord):
+    """Contains information about EGTS_SR_AD_SENSORS_DATA"""
+
+    def __init__(self, **kwargs):
+        super().__init__(EGTS_SR_AD_SENSORS_DATA)
+        self.dioe = kwargs.get('dioe')
+        self.dout = kwargs.get('dout')
+        self.asfe = kwargs.get('asfe')
+        self.adio = kwargs.get('adio')
+        self.ans = kwargs.get('ans')
+
+    @classmethod
+    def parse(cls, buffer):
+        dioe = buffer[0]
+        dout = buffer[1]
+        asfe = buffer[2]
+        offset = 3
+        adio = {}
+        for i in range(8):
+            if dioe & (0b1 << i):
+                adio[i+1] = buffer[offset]
+                offset += 1
+        ans = {}
+        for i in range(8):
+            if asfe & (0b1 << i):
+                ans[i+1] = int.from_bytes(buffer[offset:offset+3], byteorder='big')
+                offset += 3
+        kwargs = {'dioe': dioe, 'dout': dout, 'asfe': asfe, 'adio': adio, 'ans': ans}
+        return cls(**kwargs)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        s += "dioe: {0:#010b}, dout: {1:#010b}, asfe: {2:#010b}".format(self.dioe, self.dout, self.asfe)
+        for k in sorted(self.adio):
+            s += ", adio{0}: {1:#010b}".format(k, self.adio[k])
+        for k in sorted(self.ans):
+            s += ", ans{0}: {1}".format(k, self.ans[k])
+        s += "}"
+        return s
+
+class EgtsSrAbsAnSensData(EgtsSubRecord):
+    """Contains information about EGTS_SR_ABS_AN_SENS_DATA"""
+
+    def __init__(self, **kwargs):
+        super().__init__(EGTS_SR_ABS_AN_SENS_DATA)
+        self.asn = kwargs.get('asn')
+        self.asv = kwargs.get('asv')
+
+    @classmethod
+    def parse(cls, buffer):
+        asn = buffer[0]
+        asv = int.from_bytes(buffer[1:4], byteorder='big')
+        kwargs = {'asn': asn, 'asv': asv}
+        return cls(**kwargs)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        s += "asn: {0}, asv: {1}".format(self.asn, self.asv) + "}"
+        return s
+
+class EgtsSrLiquidLevelSensor(EgtsSubRecord):
+    """Contains information about EGTS_SR_LIQUID_LEVEL_SENSOR"""
+
+    def __init__(self, **kwargs):
+        super().__init__(EGTS_SR_LIQUID_LEVEL_SENSOR)
+        self.llsef = kwargs.get('llsef')
+        self.llsvu = kwargs.get('llsvu')
+        self.rdf = kwargs.get('rdf')
+        self.llsn = kwargs.get('llsn')
+        self.maddr = kwargs.get('maddr')
+        self.llsd = kwargs.get('llsd')
+
+    @classmethod
+    def parse(cls, buffer):
+        llsef = (buffer[0] >> 6) & 0b1
+        llsvu = (buffer[0] >> 4) & 0b11
+        rdf = (buffer[0] >> 3) & 0b1
+        llsn = buffer[0] & 0b111
+        maddr = int.from_bytes(buffer[1:3], byteorder='little')
+        if rdf == 0:
+            llsd = int.from_bytes(buffer[3:7], byteorder='little')
+        else:
+            llsd = buffer[3:]
+        kwargs = {'llsef': llsef, 'llsvu': llsvu, 'rdf': rdf, 'llsn': llsn, 'maddr': maddr, 'llsd': llsd}
+        return cls(**kwargs)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        s += "llsef: {0:#b}, llsvu: {1:#04b}, rdf: {2:#b}, llsn: {3}, maddr: {4}, " \
+             "llsd: {5}".format(self.llsef, self.llsvu, self.rdf, self.llsn, self.maddr, self.llsd) + "}"
+        return s
+        
 
 class UnknownSubRecord(EgtsSubRecord):
     """Contains information about subrecord unknown by egts-debugger"""
