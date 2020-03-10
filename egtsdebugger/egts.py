@@ -473,7 +473,7 @@ class EgtsSrAdSensorsData(EgtsSubRecord):
         ans = {}
         for i in range(8):
             if asfe & (0b1 << i):
-                ans[i+1] = int.from_bytes(buffer[offset:offset+3], byteorder='big')
+                ans[i+1] = int.from_bytes(buffer[offset:offset+3], byteorder='little')
                 offset += 3
         kwargs = {'dioe': dioe, 'dout': dout, 'asfe': asfe, 'adio': adio, 'ans': ans}
         return cls(**kwargs)
@@ -499,7 +499,7 @@ class EgtsSrAbsAnSensData(EgtsSubRecord):
     @classmethod
     def parse(cls, buffer):
         asn = buffer[0]
-        asv = int.from_bytes(buffer[1:4], byteorder='big')
+        asv = int.from_bytes(buffer[1:4], byteorder='little')
         kwargs = {'asn': asn, 'asv': asv}
         return cls(**kwargs)
 
