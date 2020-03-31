@@ -41,6 +41,7 @@ EGTS_PC_INVDATALEN_DESCR = "Incorrect data length"
 EGTS_PC_SR_UNKN = 165
 EGTS_PC_SR_UNKN_DESCR = "Unknown service subrecord type"
 
+EGTS_MAX_PACKET_LENGTH = 65535
 
 class EgtsParsingError(ValueError):
     def __init__(self, message, error_description, error_code):
