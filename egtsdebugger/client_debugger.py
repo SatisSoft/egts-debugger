@@ -83,6 +83,7 @@ class EgtsClientDebugger:
                         egts = self._validate_first_packet(buff)
                     else:
                         egts = self._validate_nav_packet(buff)
+                        print("Received egts packet:", egts)
                     reply = egts.reply(self.pid, self.rid)
                     conn.send(reply)
                     self.pid += 1
