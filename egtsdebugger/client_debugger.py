@@ -37,17 +37,6 @@ class EgtsClientDebugger:
         conn, addr = s.accept()
         with conn:
             try:
-                data = conn.recv(1024)
-                if not data:
-                    print("Error: received no data")
-                    s.close()
-                    return
-                egts = self._validate_first_packet(data)
-                reply = egts.reply(self.pid, self.rid)
-                conn.send(reply)
-                self.num += 1
-                self.pid += 1
-                self.rid += 1
                 self._loop(conn)
             except EgtsParsingError as err:
                 msg = "ERROR. EGTS connection test failed: error parsing EGTS packet. Error code {0}. {1}.".format(
@@ -82,13 +71,18 @@ class EgtsClientDebugger:
         buff = b""
         while self.num < self.max:
             data = conn.recv(1024)
-            if not data:
+            if not data and not buff and self.num == 0:
+                print("Error: received no data")
+                break
+            elif not data:
                 break
             buff = buff + data
             while len(buff) > 0:
                 try:
-                    egts = self._validate_nav_packet(buff)
-                    print("Received egts packet:", egts)
+                    if self.num == 0:
+                        egts = self._validate_first_packet(buff)
+                    else:
+                        egts = self._validate_nav_packet(buff)
                     reply = egts.reply(self.pid, self.rid)
                     conn.send(reply)
                     self.pid += 1
@@ -96,9 +90,9 @@ class EgtsClientDebugger:
                     self.num += 1
                     buff = egts.rest_buff
                 except EgtsPcInvdatalen as err:
-                    if len(buff) > 1024:
+                    if len(buff) > EGTS_MAX_PACKET_LENGTH:
                         print("Error parsing packet:", err, buff)
-                        buff = b""
+                        return
                     break
 
     def _validate_first_packet(self, data):
