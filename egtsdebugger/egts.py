@@ -16,6 +16,9 @@ timestamp_20100101_000000_utc = 1262304000
 EGTS_AUTH_SERVICE = 1
 EGTS_TELEDATA_SERVICE = 2
 EGTS_SR_DISPATCHER_IDENTITY = 5
+EGTS_SR_AUTH_PARAMS = 6
+EGTS_SR_AUTH_INFO = 7
+EGTS_SR_RESULT_CODE = 9
 EGTS_SR_POS_DATA = 16
 EGTS_SR_AD_SENSORS_DATA = 18
 EGTS_SR_ABS_AN_SENS_DATA = 24
@@ -319,6 +322,10 @@ class EgtsRecord:
     def _analyze_subrecord_auth(self, buff, srt):
         if srt == EGTS_SR_DISPATCHER_IDENTITY:
             return EgtsSrDispatcherIdentity.parse(buff, srt)
+        if srt == EGTS_SR_AUTH_PARAMS:
+            return EgtsSrAuthParams.parse(buff, srt)
+        if srt == EGTS_SR_RESULT_CODE:
+            return EgtsSrResultCode.parse(buff, srt)
         else:
             return UnknownSubRecord(srt)
 
@@ -360,9 +367,11 @@ class EgtsRecord:
         rid_bin = self.rid.to_bytes(2, 'little')
         flags = 0
         id_bin = b''
-        if self.id:
-            flags = 1
+        try:
             id_bin = self.id.to_bytes(4, 'little')
+            flags |= 0b00000001
+        except AttributeError:
+            pass
         sst_bin = self.sst.to_bytes(1, 'little')
         record = len_bin + rid_bin + flags.to_bytes(1, 'little') + id_bin + sst_bin + sst_bin + b
         return record
@@ -584,4 +593,63 @@ class EgtsSrDispatcherIdentity(EgtsSubRecord):
     def subrecord_to_string(self):
         s = "{" + super().subrecord_to_string() + ", "
         s += "dt: {0}, did: {1}".format(self.dt, self.did) + "}"
+        return s
+
+    def form_bin(self):
+        srt = self.type.to_bytes(1, 'little')
+        srd = self.dt.to_bytes(1, 'little') + self.did.to_bytes(4, 'little')
+        srl = len(srd).to_bytes(2, 'little')
+        subrec = srt + srl + srd
+        return subrec
+
+class EgtsSrAuthParams(EgtsSubRecord):
+    """Contains information about EGTS_SR_AUTH_PARAMS"""
+
+    def __init__(self, srt, **kwargs):
+        super().__init__(srt)
+        self.flg = kwargs.get('flg')
+
+    @classmethod
+    def parse(cls, buffer, srt):
+        flg = buffer[0]
+        kwargs = {'flg': flg}
+        return cls(srt, **kwargs)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        s += "flg: {0}".format(self.flg)
+        return s
+
+class EgtsSrAuthInfo(EgtsSubRecord):
+    """Contains information about EGTS_SR_AUTH_INFO"""
+
+    def __init__(self, srt, **kwargs):
+        super().__init__(srt)
+        self.unm = kwargs.get('unm')
+        self.upsw = kwargs.get('upsw')
+
+    def form_bin(self):
+        srt = self.type.to_bytes(1, 'little')
+        unm = self.unm.encode()
+        upsw = self.upsw.encode()
+        srd = unm + b'\x00' + upsw + b'\x00'
+        srl = len(srd).to_bytes(2, 'little')
+        subrec = srt + srl + srd
+        return subrec
+
+class EgtsSrResultCode(EgtsSubRecord):
+    """Contains information about EGTS_SR_RESULT_CODE"""
+    def __init__(self, srt, **kwargs):
+        super().__init__(srt)
+        self.rcd = kwargs.get('rcd')
+
+    @classmethod
+    def parse(cls, buffer, srt):
+        rcd = buffer[0]
+        kwargs = {'rcd': rcd}
+        return cls(srt, **kwargs)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        s += "rcd: {0}".format(self.rcd)
         return s

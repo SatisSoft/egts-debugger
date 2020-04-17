@@ -1,17 +1,11 @@
 import logging
-import crcmod
 from egtsdebugger.egts import *
 import socket
-
-auth_packet = b"\x01\x00\x00\x0b\x00\x0f\x00\x01\x00\x01\x06\x08\x00\x01\x00\x38\x01\x01\x05\x05\x00\x00\xef" \
-              b"\x03\x00\x00\x07\xcd"
-crc16_func = crcmod.mkCrcFun(0x11021, initCrc=0xFFFF, rev=False)
-
 
 class RnisConnector:
     """Provide functional for connecting to RNIS"""
 
-    def __init__(self, host, port, num, dispatcher, file):
+    def __init__(self, host, port, num, dispatcher, file, **kwargs):
         self.host = host
         self.port = port
         self.num = 0
@@ -19,6 +13,9 @@ class RnisConnector:
         self.did = dispatcher
         self.pid = 0
         self.rid = 0
+        self.login = kwargs.get('login')
+        self.password = kwargs.get('password')
+        self.buffer = b''
         logging.basicConfig(filename=file, filemode='w', level=logging.INFO)
 
     def start(self):
@@ -27,8 +24,10 @@ class RnisConnector:
         s.connect((self.host, self.port))
         with s:
             try:
-                self._sent_first_message(s)
-                self._loop(s)
+                if self._auth(s):
+                    self._loop(s)
+                else:
+                    logging.error("EGTS authorization failed")
             except Exception as err:
                 logging.error("EGTS connection test failed: %s", err)
             else:
@@ -37,41 +36,102 @@ class RnisConnector:
             finally:
                 s.close()
 
-    def _sent_first_message(self, conn):
-        msg = self._form_first_message()
-        conn.send(msg)
+    def _auth(self, conn):
+        subrec = EgtsSrDispatcherIdentity(EGTS_SR_DISPATCHER_IDENTITY, dt=0, did=self.did)
+        response = self._send_auth_packet(conn, subrec)
+        logging.info("Received egts packet: %s", response)
+        if not self._check_response(response):
+            return False
+
+        if self.did == 0xFFffFFff:
+            auth_params = self._receive_packet(conn)
+            logging.info("Received egts packet: %s", auth_params)
+            self._send_replay(conn, auth_params)
+            if not self._check_auth_params(auth_params):
+                return False
+
+            subrec = EgtsSrAuthInfo(EGTS_SR_AUTH_INFO, unm=self.login, upsw=self.password)
+            response = self._send_auth_packet(conn, subrec)
+            logging.info("Received egts packet: %s", response)
+            if not self._check_response(response):
+                return False
+
+        result_code = self._receive_packet(conn)
+        logging.info("Received egts packet: %s", result_code)
+        self._send_replay(conn, result_code)
+        if not self._check_result_code(result_code):
+            return False
+        return True
 
     def _loop(self, conn):
-        buff = b""
         while self.num < self.max:
-            data = conn.recv(1024)
-            if not data:
-                break
-            buff = buff + data
-            while len(buff) > 0:
-                try:
-                    egts = self._validate_nav_packet(buff)
-                    logging.info("Received egts packet: %s", egts)
-                    reply = egts.reply(self.pid, self.rid)
-                    conn.send(reply)
-                    self.pid += 1
-                    self.rid += 1
-                    self.num += 1
-                    buff = egts.rest_buff
-                except EgtsPcInvdatalen as err:
-                    if len(buff) > 10000:
-                        logging.error("Error parsing packet: %s; %s", err, buff)
-                        buff = b""
-                    break
+            egts = self._receive_packet(conn)
+            self._send_replay(conn, egts)
+            self.num += 1
+            logging.info("Received egts packet: %s", egts)
 
-    def _form_first_message(self):
-        header = auth_packet[0:11]
-        body = auth_packet[11:22] + self.did.to_bytes(4, 'little')
-        bcs = crc16_func(body)
-        bcs_bin = bcs.to_bytes(2, 'little')
-        return header + body + bcs_bin
+    def _receive_packet(self, conn):
+        while len(self.buffer) <= EGTS_MAX_PACKET_LENGTH:
+            if self.buffer == b'':
+                data = conn.recv(1024)
+                if not data:
+                    return None
+                else:
+                    self.buffer += data
+            try:
+                egts = Egts(self.buffer)
+                self.buffer = egts.rest_buff
+                return egts
+            except EgtsPcInvdatalen as err:
+                data = conn.recv(1024)
+                if not data:
+                    return None
+                else:
+                    self.buffer += data
+
+    def _send_replay(self, conn, egts):
+        reply = egts.reply(self.pid, self.rid)
+        self._pid_increment()
+        self._rid_increment()
+
+    def _send_auth_packet(self, conn, subrec):
+        egts_record = EgtsRecord(rid=self.rid, sst=EGTS_AUTH_SERVICE, subrecords=[subrec])
+        packet = Egts.form_bin(self.pid, [egts_record])
+        conn.send(packet)
+        self._pid_increment()
+        self._rid_increment()
+        response = self._receive_packet(conn)
+        return response
+
+    def _pid_increment(self):
+        self.pid += 1
+        if self.pid > 0xFFff:
+            self.pid = 0
+
+    def _rid_increment(self):
+        self.rid += 1
+        if self.rid > 0xFFff:
+            self.rid = 0
 
     @staticmethod
-    def _validate_nav_packet(data):
-        egts = Egts(data)
-        return egts
+    def _check_response(packet):
+        for record in packet.records:
+            for subrec in record.subrecords:
+                if subrec.rst != 0:
+                    return False
+        else:
+            return True
+
+    @staticmethod
+    def _check_auth_params(packet):
+        if packet.records[0].subrecords[0].flg != 0:
+            return False
+        else:
+            return True
+
+    @staticmethod
+    def _check_result_code(packet):
+        if packet.records[0].subrecords[0].rcd != 0:
+            return False
+        else:
+            return True

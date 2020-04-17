@@ -10,8 +10,8 @@ def port_type(x):
 
 def n_type(x):
     x = int(x)
-    if x <= 1:
-        raise argparse.ArgumentTypeError("The number of packets must be grater then 1")
+    if x < 1:
+        raise argparse.ArgumentTypeError("The number of packets must be grater then 0")
     return x
 
 
@@ -21,9 +21,27 @@ parser.add_argument("-f", "--file", default="result.log", help="file to write lo
 parser.add_argument("--hostname", default='', help="hostname")
 parser.add_argument("-n", "--number", default=10, type=n_type,
                     help="number of packets to receive before finish the debugger")
-parser.add_argument("-d", "--dispatcher", type=int, required=True, help="dispatcher id")
+parser.add_argument("-d", "--dispatcher", default=0, type=int, help="dispatcher id")
+group = parser.add_argument_group('auth', 'should be used without dispatcher id')
+group.add_argument("--login", type=str, help="login")
+group.add_argument("--password", type=str, help="password")
 
 args = parser.parse_args()
 
-rnis_connector = RnisConnector(args.hostname, args.port, args.number, args.dispatcher, args.file)
+if not args.dispatcher and args.login and args.password:
+    dispatcher = 0xFFffFFff
+elif args.dispatcher and not (args.login or args.password):
+    dispatcher = args.dispatcher
+else:
+    parser.print_help()
+    exit(1)
+
+
+rnis_connector = RnisConnector(args.hostname,
+                               args.port,
+                               args.number,
+                               dispatcher,
+                               args.file,
+                               login=args.login,
+                               password=args.password)
 rnis_connector.start()
