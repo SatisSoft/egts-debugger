@@ -1,6 +1,8 @@
 import socket
 from egtsdebugger.egts import *
 
+import traceback
+
 
 class IncorrectNumberOfDispIdentity(ValueError):
     pass
@@ -56,6 +58,7 @@ class EgtsClientDebugger:
                     "ID, set it to 1.")
             except Exception as err:
                 print("ERROR. EGTS connection test failed:", err)
+                print("trackback: ", traceback.format_exc())
             else:
                 if self.num == self.max:
                     print("SUCCESS. EGTS connection test succeeded. Received", self.num, "packets.")
@@ -75,12 +78,14 @@ class EgtsClientDebugger:
                 print("Error: received no data")
                 break
             elif not data:
+                print("Not data")
                 break
             buff = buff + data
             while len(buff) > 0:
                 try:
                     if self.num == 0:
                         egts = self._validate_first_packet(buff)
+                        print("Received egts identify packet:", egts)
                     else:
                         egts = self._validate_nav_packet(buff)
                         print("Received egts packet:", egts)
@@ -98,6 +103,7 @@ class EgtsClientDebugger:
 
     def _validate_first_packet(self, data):
         egts = Egts(data)
+        print("Source Egts", egts)
         if self.did < 0:
             subs = self._found_dispatcher_identity(egts.records)
             if len(subs) > 1:
