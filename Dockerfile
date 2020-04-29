@@ -8,4 +8,6 @@ RUN pip install crcmod
 
 ADD . /app
 
-CMD python start_client_debugger.py
+ENV DISPATCHER_ID=1
+
+CMD python start_client_loop_debugger.py -d ${DISPATCHER_ID}

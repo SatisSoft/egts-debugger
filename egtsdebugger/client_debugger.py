@@ -4,7 +4,6 @@ from egtsdebugger.egts import *
 import traceback
 import logging
 
-
 class IncorrectNumberOfDispIdentity(ValueError):
     pass
 
@@ -33,11 +32,21 @@ class EgtsClientDebugger:
         self.rid = 0
         self.did = dispatcher
 
-    def start_listening(self):
+    def start_listening(self, accept_loop = False):
         s = socket.socket()
         s.bind((self.host, self.port))
         s.listen(1)
-        conn, addr = s.accept()
+
+        if accept_loop:
+            while True:
+                conn, addr = s.accept()
+                self.handle_conn(conn)
+        else:
+            conn, addr = s.accept()
+            self.handle_conn(conn)
+            s.close()
+
+    def handle_conn(self, conn):
         with conn:
             try:
                 self._loop(conn)
@@ -68,12 +77,10 @@ class EgtsClientDebugger:
                     logging.info("ERROR. EGTS connection test failed: received only auth packet.")
                 else:
                     logging.info("ERROR. Received only {0} packets, expected {1} packets.".format(self.num, self.max))
-            finally:
-                s.close()
 
     def _loop(self, conn):
         buff = b""
-        while self.num < self.max:
+        while self.max < 0 or self.num < self.max:
             data = conn.recv(1024)
             if not data and not buff and self.num == 0:
                 logging.error("Error: received no data")

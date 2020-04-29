@@ -9,6 +9,6 @@ def port_type(x):
 
 def n_type(x):
     x = int(x)
-    if x <= 1:
+    if x < 1:
         raise argparse.ArgumentTypeError("The number of packets must be grater then 1")
     return x
