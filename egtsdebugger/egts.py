@@ -15,6 +15,7 @@ EGTS_PT_APPDATA = 1
 timestamp_20100101_000000_utc = 1262304000
 EGTS_AUTH_SERVICE = 1
 EGTS_TELEDATA_SERVICE = 2
+EGTS_COMMANDS_SERVICE = 4
 EGTS_SR_DISPATCHER_IDENTITY = 5
 EGTS_SR_AUTH_PARAMS = 6
 EGTS_SR_AUTH_INFO = 7
@@ -23,6 +24,16 @@ EGTS_SR_POS_DATA = 16
 EGTS_SR_AD_SENSORS_DATA = 18
 EGTS_SR_ABS_AN_SENS_DATA = 24
 EGTS_SR_LIQUID_LEVEL_SENSOR = 27
+EGTS_SR_COMMAND_DATA = 51
+# EGTS_SR_COMMAND_DATA command types
+CT_COMCONF = 0b0001
+CT_MSGCONF = 0b0010
+CT_MSGFROM = 0b0011
+CT_MSGTO = 0b0100
+CT_COM = 0b0101
+CT_DELCOM = 0b0110
+CT_SUBREQ = 0b0111
+CT_DELIV = 0b1000
 
 EGTS_SR_DISPATCHER_IDENTITY_DESCR = "EGTS_SR_DISPATCHER_IDENTITY"
 
@@ -310,6 +321,8 @@ class EgtsRecord:
             sub = self._analyze_subrecord_auth(sub_data, srt)
         elif self.sst == EGTS_TELEDATA_SERVICE:
             sub = self._analyze_subrecord_tele(sub_data, srt)
+        elif self.sst == EGTS_COMMANDS_SERVICE:
+            sub = self._analyze_subrecord_comm(sub_data, srt)
         else:
             message = "sst = {0}; srt = {1}".format(self.sst, srt)
             raise EgtsPcSrvcUnkn(message)
@@ -338,6 +351,12 @@ class EgtsRecord:
             return EgtsSrAbsAnSensData.parse(buff)
         elif srt == EGTS_SR_LIQUID_LEVEL_SENSOR:
             return EgtsSrLiquidLevelSensor.parse(buff)
+        else:
+            return UnknownSubRecord(srt)
+
+    def _analyze_subrecord_comm(self, buff, srt):
+        if srt == EGTS_SR_COMMAND_DATA:
+            return EgtsSrCommandData.parse(buff, srt)
         else:
             return UnknownSubRecord(srt)
 
@@ -652,4 +671,86 @@ class EgtsSrResultCode(EgtsSubRecord):
     def subrecord_to_string(self):
         s = "{" + super().subrecord_to_string() + ", "
         s += "rcd: {0}".format(self.rcd)
+        return s
+
+
+class EgtsSrCommandData(EgtsSubRecord):
+    """Contains information about EGTS_SR_COMMAND_DATA"""
+    def __init__(self, srt, **kwargs):
+        super().__init__(srt)
+        self.ct = kwargs.get('ct')
+        self.cct = kwargs.get('cct')
+        self.cid = kwargs.get('cid')
+        self.sid = kwargs.get('sid')
+        self.acfe = kwargs.get('acfe')
+        self.chsfe = kwargs.get('chsfe')
+        self.chs = kwargs.get('chs')
+        self.acl = kwargs.get('acl')
+        self.ac = kwargs.get('ac')
+        self.adr = kwargs.get('adr')
+        self.sz = kwargs.get('sz')
+        self.act = kwargs.get('act')
+        self.ccd = kwargs.get('ccd')
+        self.dt = kwargs.get('dt')
+
+    @classmethod
+    def parse(cls, buffer, srt):
+        ct = buffer[0] >> 4
+        cct = buffer[0] & 0b00001111
+        cid = int.from_bytes(buffer[1:5], byteorder='little')
+        sid = int.from_bytes(buffer[5:9], byteorder='little')
+        acfe = (buffer[9] & 0b00000010) >> 1
+        chsfe = (buffer[9] & 0b00000001)
+        kwargs = {'ct': ct, 'cct': cct, 'cid': cid, 'sid': sid, 'acfe': acfe, 'chsfe': chsfe}
+        offset = 10
+        if chsfe:
+            chs = buffer[offset]
+            offset += 1
+            kwargs['chs'] = chs
+        if acfe:
+            acl = buffer[offset]
+            offset += 1
+            kwargs['acl'] = acl
+            ac = buffer[offset:offset+acl]
+            offset += acl
+            kwargs['ac'] = ac
+        cd = buffer[offset:]
+        if ct in (CT_COMCONF, CT_MSGCONF, CT_MSGFROM):
+            adr = int.from_bytes(cd[0:2], byteorder='little')
+            ccd = int.from_bytes(cd[2:4], byteorder='little')
+            dt = cd[4:]
+            kwargs.update({'adr': adr, 'ccd': ccd, 'dt': dt})
+        elif ct in (CT_MSGTO, CT_COM, CT_DELCOM, CT_SUBREQ):
+            adr = int.from_bytes(cd[0:2], byteorder='little')
+            sz = cd[2] >> 4
+            act = cd[2] & 0b00001111
+            ccd = int.from_bytes(cd[3:5], byteorder='little')
+            dt = cd[5:]
+            kwargs.update({'adr': adr, 'sz': sz, 'act': act, 'ccd': ccd, 'dt': dt})
+        return cls(srt, **kwargs)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        s += "ct: {0}, ".format(self.ct)
+        s += "cct: {0}, ".format(self.cct)
+        s += "cid: {0}, ".format(self.cid)
+        s += "sid: {0}, ".format(self.sid)
+        s += "acfe: {0}, ".format(self.acfe)
+        s += "chsfe: {0}, ".format(self.chsfe)
+        if self.chsfe:
+             s += 'hs: {0}, '.format(self.chs)
+        if self.acfe:
+            s += 'acl: {0}, '.format(self.acl)
+            s += 'ac: {0}, '.format(self.ac)
+        if self.ct in (CT_COMCONF, CT_MSGCONF, CT_MSGFROM):
+            s += 'adr: {0}, '.format(self.adr)
+            s += 'ccd: {0}, '.format(self.ccd)
+            s += 'dt: "{0}"'.format(self.dt.rstrip(b'\x00').decode('utf8'))
+        elif self.ct in (CT_MSGTO, CT_COM, CT_DELCOM, CT_SUBREQ):
+            s += 'adr: {0}, '.format(self.adr)
+            s += 'sz: {0}, '.format(self.sz)
+            s += 'act: {0}, '.format(self.act)
+            s += 'ccd: {0}, '.format(self.ccd)
+            s += 'dt: "{0}"'.format(self.dt.rstrip(b'\x00').decode('utf8'))
+        s += "}"
         return s
