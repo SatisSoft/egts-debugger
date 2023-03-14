@@ -176,7 +176,7 @@ class Egts:
             self.service = rec.sst
 
     def _parse_response(self):
-        if len(self.body) > 3:
+        if len(self.body) >= 3:
             self.rpid = int.from_bytes(self.body[0:2], byteorder='little')
             self.pr = self.body[2]
             self.records = []
