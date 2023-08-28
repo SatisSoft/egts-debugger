@@ -16,6 +16,7 @@ timestamp_20100101_000000_utc = 1262304000
 EGTS_AUTH_SERVICE = 1
 EGTS_TELEDATA_SERVICE = 2
 EGTS_COMMANDS_SERVICE = 4
+EGTS_SR_TERM_IDENTITY = 1
 EGTS_SR_DISPATCHER_IDENTITY = 5
 EGTS_SR_AUTH_PARAMS = 6
 EGTS_SR_AUTH_INFO = 7
@@ -333,6 +334,8 @@ class EgtsRecord:
         return EgtsResponse(buff)
 
     def _analyze_subrecord_auth(self, buff, srt):
+        if srt == EGTS_SR_TERM_IDENTITY:
+            return EgtsSrTermIdentity.parse(buff, srt)
         if srt == EGTS_SR_DISPATCHER_IDENTITY:
             return EgtsSrDispatcherIdentity.parse(buff, srt)
         if srt == EGTS_SR_AUTH_PARAMS:
@@ -593,6 +596,91 @@ class EgtsResponse(EgtsSubRecord):
         s += "Confirmed Record Number: {0}, Record Status: {1}".format(self.crn, self.rst) + "}"
         return s
 
+class EgtsSrTermIdentity(EgtsSubRecord):
+    """Contains information about EGTS_SR_TERM_IDENTITY """
+
+    def __init__(self, srt, **kwargs):
+        super().__init__(srt)
+        self.tid = kwargs.get('tid')
+        self.ssra = kwargs.get('ssra')
+        self.hdid = kwargs.get('hdid')
+        self.imei = kwargs.get('imei')
+        self.imsi = kwargs.get('imsi')
+        self.lngc = kwargs.get('lngc')
+        self.nid = kwargs.get('nid')
+        self.bs = kwargs.get('bs')
+        self.msisdn = kwargs.get('msisdn')
+
+    @classmethod
+    def parse(cls, buffer, srt):
+        tid = int.from_bytes(buffer[0:4], byteorder='little', signed=False)
+        kwargs = {'tid': tid}
+
+        mne   = (buffer[4] & 0b10000000) >> 7
+        bse   = (buffer[4] & 0b01000000) >> 6
+        nide  = (buffer[4] & 0b00100000) >> 5
+        ssra  = (buffer[4] & 0b00010000) >> 4
+        kwargs['ssra'] = ssra
+        lngce = (buffer[4] & 0b00001000) >> 3
+        imsie = (buffer[4] & 0b00000100) >> 2
+        imeie = (buffer[4] & 0b00000010) >> 1
+        hdide = (buffer[4] & 0b00000001)
+
+        buffer = buffer[5:]
+
+        if hdide:
+            hdid = int.from_bytes(buffer[:2], byteorder='little', signed=False)
+            kwargs['hdid'] = hdid
+            buffer = buffer[2:]
+
+        if imeie:
+            imei = buffer[:15].decode('utf8')
+            kwargs['imei'] = imei
+            buffer = buffer[15:]
+        if imsie:
+            imsi = buffer[:16].decode('utf8')
+            kwargs['imsi'] = imsi
+            buffer = buffer[16:]
+        if lngce:
+            lngc = buffer[:3].decode('utf8')
+            kwargs['lngc'] = lngc
+            buffer = buffer[3:]
+        if nide:
+            nid = buffer[:3]
+            kwargs['nid'] = nid
+            buffer = buffer[3:]
+        if bse:
+            bs = int.from_bytes(buffer[:2], byteorder='little', signed=False)
+            kwargs['hdid'] = hdid
+            buffer = buffer[2:]
+        if mne:
+            msisdn = buffer[:15].decode('utf8')
+            kwargs['msisdn'] = msisdn
+            buffer = buffer[15:]
+        return cls(srt, **kwargs)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        s += "tis: {0}, ssra: {1}".format(self.tid, self.ssra)
+        optional = []
+        if self.hdid:
+            optional.append("hdid: {0}".format(self.hdid))
+        if self.imei:
+            optional.append("imei: {0}".format(self.imei))
+        if self.imsi:
+            optional.append("imsi: {0}".format(self.imsi))
+        if self.lngc:
+            optional.append("lngc: {0}".format(self.lngc))
+        if self.nid:
+            optional.append("nid: {0}".format(self.nid))
+        if self.bs:
+            optional.append("bs: {0}".format(self.bs))
+        if self.msisdn:
+            optional.append("msisdn: {0}".format(self.msisdn))
+        if optional:
+            s += ", " + ",".join(optional)
+        s += "}"
+        return s
 
 class EgtsSrDispatcherIdentity(EgtsSubRecord):
     """Contains information about EGTS_SR_DISPATCHER_IDENTITY """
