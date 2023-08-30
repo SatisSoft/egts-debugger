@@ -651,7 +651,7 @@ class EgtsSrTermIdentity(EgtsSubRecord):
             buffer = buffer[3:]
         if bse:
             bs = int.from_bytes(buffer[:2], byteorder='little', signed=False)
-            kwargs['hdid'] = hdid
+            kwargs['bs'] = bs
             buffer = buffer[2:]
         if mne:
             msisdn = buffer[:15].decode('utf8')
