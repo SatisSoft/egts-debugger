@@ -599,7 +599,7 @@ class EgtsResponse(EgtsSubRecord):
 class EgtsSrTermIdentity(EgtsSubRecord):
     """Contains information about EGTS_SR_TERM_IDENTITY """
 
-    def __init__(self, srt, **kwargs):
+    def __init__(self, srt=EGTS_SR_TERM_IDENTITY, **kwargs):
         super().__init__(srt)
         self.tid = kwargs.get('tid')
         self.ssra = kwargs.get('ssra')
@@ -661,7 +661,7 @@ class EgtsSrTermIdentity(EgtsSubRecord):
 
     def subrecord_to_string(self):
         s = "{" + super().subrecord_to_string() + ", "
-        s += "tis: {0}, ssra: {1}".format(self.tid, self.ssra)
+        s += "tid: {0}, ssra: {1}".format(self.tid, self.ssra)
         optional = []
         if self.hdid:
             optional.append("hdid: {0}".format(self.hdid))
@@ -678,9 +678,45 @@ class EgtsSrTermIdentity(EgtsSubRecord):
         if self.msisdn:
             optional.append("msisdn: {0}".format(self.msisdn))
         if optional:
-            s += ", " + ",".join(optional)
+            s += ", " + ", ".join(optional)
         s += "}"
         return s
+
+    def form_bin(self):
+        srtid = self.tid.to_bytes(4, 'little')
+
+        if self.ssra:
+            flags = 0b00010000
+        else:
+            flags = 0b00000000
+
+        srhdid = srimei = srimsi = srlngc = srnid = srbs = srmsisdn = b''
+        if self.hdid:
+            srhdid = self.hdid.to_bytes(2, 'little')
+            flags |= 0b00000001
+        if self.imei:
+            srimei = self.imei.encode('utf8').zfill(15)[:15]
+            flags |= 0b00000010
+        if self.imsi:
+            srimsi = self.imsi.encode('utf8').zfill(16)[:16]
+            flags |= 0b00000100
+        if self.lngc:
+            srlngc = self.lngc.encode('utf8').zfill(3)[:3]
+            flags |= 0b00001000
+        if self.nid:
+            srnid = self.nid.zfill(3)[:3]
+            flags |= 0b00100000
+        if self.bs:
+            srbs = self.bs.to_bytes(2, 'little')
+            flags |= 0b01000000
+        if self.msisdn:
+            srmsisdn = self.msisdn.encode('utf8').zfill(15)[:15]
+            flags |= 0b10000000
+        srt = self.type.to_bytes(1, 'little')
+        srd = srtid + flags.to_bytes(1, 'little') + srhdid + srimei + srlngc + srnid + srbs + srmsisdn
+        srl = len(srd).to_bytes(2, 'little')
+        subrec = srt + srl + srd
+        return subrec
 
 class EgtsSrDispatcherIdentity(EgtsSubRecord):
     """Contains information about EGTS_SR_DISPATCHER_IDENTITY """
