@@ -17,6 +17,8 @@ class IncorrectNavPacket(ValueError):
 class UnexpectedDispatcherIdentity(ValueError):
     pass
 
+class IncorrectResponsePacket(ValueError):
+    pass
 
 class EgtsClientDebugger:
     """Provides functional for testing EGTS client"""
@@ -81,14 +83,28 @@ class EgtsClientDebugger:
                 try:
                     if self.num == 0:
                         egts = self._validate_first_packet(buff)
+                        self.num += 1
+
+                        reply = egts.reply(self.pid, self.rid)
+                        conn.send(reply)
+                        self.pid += 1
+                        self.rid += 1
+
+                        result_code = Egts.form_bin(self.pid, [EgtsRecord(rid=self.rid, sst=1, subrecords=[EgtsSrResultCode(9, rcd=0)])])
+                        conn.send(result_code)
+                        self.pid += 1
+                        self.rid += 1
+                    elif self.num == 1:
+                        egts = self._validate_response_packet(buff)
+                        self.num += 1
                     else:
                         egts = self._validate_nav_packet(buff)
+                        self.num += 1
                         print("Received egts packet:", egts)
-                    reply = egts.reply(self.pid, self.rid)
-                    conn.send(reply)
-                    self.pid += 1
-                    self.rid += 1
-                    self.num += 1
+                        reply = egts.reply(self.pid, self.rid)
+                        conn.send(reply)
+                        self.pid += 1
+                        self.rid += 1
                     buff = egts.rest_buff
                 except EgtsPcInvdatalen as err:
                     if len(buff) > EGTS_MAX_PACKET_LENGTH:
@@ -121,6 +137,28 @@ class EgtsClientDebugger:
             else:
                 print("Error validating first packet:", egts)
                 raise IncorrectNumberOfDispIdentity
+        return egts
+
+    def _validate_response_packet(self, data):
+        egts = Egts(data)
+        if egts.packet_type != 0:
+            raise IncorrectResponsePacket("Wrong packet type")
+        elif egts.service != 1:
+            raise IncorrectResponsePacket("Wrong service type")
+        elif egts.rpid != self.pid - 1:
+            raise IncorrectResponsePacket("Wrong Response Packet ID")
+        elif egts.pr != 0:
+            raise IncorrectResponsePacket("Wrong Processing Result")
+
+        if len(egts.records) != 1 or len(egts.records[0].subrecords) != 1:
+            raise IncorrectResponsePacket("One record with a single subrecord was expected")
+        sr = egts.records[0].subrecords[0]
+
+        if sr.crn != self.rid - 1:
+            raise IncorrectResponsePacket("Wrong confirmed Record Number")
+        elif sr.rst != 0:
+            raise IncorrectResponsePacket("Wrong confirmed Record Status")
+
         return egts
 
     @staticmethod

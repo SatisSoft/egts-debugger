@@ -797,6 +797,13 @@ class EgtsSrResultCode(EgtsSubRecord):
         s += "rcd: {0}".format(self.rcd)
         return s
 
+    def form_bin(self):
+        srt = int.to_bytes(9, 1, 'little')
+        srl = int.to_bytes(1, 2, 'little')
+        srd = self.rcd.to_bytes(1, 'little')
+        subrec = srt + srl + srd
+        return subrec
+
 
 class EgtsSrCommandData(EgtsSubRecord):
     """Contains information about EGTS_SR_COMMAND_DATA"""
