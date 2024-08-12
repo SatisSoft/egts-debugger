@@ -540,6 +540,15 @@ class EgtsSrAbsAnSensData(EgtsSubRecord):
         s += "asn: {0}, asv: {1}".format(self.asn, self.asv) + "}"
         return s
 
+    def form_bin(self):
+        srt = self.type.to_bytes(1, 'little')
+        asn = self.asn.to_bytes(1, 'little')
+        asv = self.asv.to_bytes(3, 'little')
+        srd = asn + asv
+        srl = len(srd).to_bytes(2, 'little')
+        subrec = srt + srl + srd
+        return subrec
+
 class EgtsSrLiquidLevelSensor(EgtsSubRecord):
     """Contains information about EGTS_SR_LIQUID_LEVEL_SENSOR"""
 
