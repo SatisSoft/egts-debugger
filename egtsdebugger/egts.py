@@ -25,6 +25,7 @@ EGTS_SR_POS_DATA = 16
 EGTS_SR_AD_SENSORS_DATA = 18
 EGTS_SR_ABS_AN_SENS_DATA = 24
 EGTS_SR_LIQUID_LEVEL_SENSOR = 27
+EGTS_SR_EXT_DATA = 44
 EGTS_SR_COMMAND_DATA = 51
 # EGTS_SR_COMMAND_DATA command types
 CT_COMCONF = 0b0001
@@ -354,6 +355,8 @@ class EgtsRecord:
             return EgtsSrAbsAnSensData.parse(buff)
         elif srt == EGTS_SR_LIQUID_LEVEL_SENSOR:
             return EgtsSrLiquidLevelSensor.parse(buff)
+        elif srt == EGTS_SR_EXT_DATA:
+            return EgtsSrExtData.parse(buff)
         else:
             return UnknownSubRecord(srt)
 
@@ -813,6 +816,41 @@ class EgtsSrResultCode(EgtsSubRecord):
         subrec = srt + srl + srd
         return subrec
 
+class EgtsSrExtData(EgtsSubRecord):
+    """Contains information about EGTS_SR_EXT_DATA"""
+    def __init__(self, srt=EGTS_SR_EXT_DATA, **kwargs):
+        super().__init__(srt)
+        self.dt = kwargs.get('dt')
+
+    @classmethod
+    def parse(cls, buffer):
+        vid = int.from_bytes(buffer[:2], byteorder='little')
+        vdt = buffer[2:]
+        dt = None
+        if vid == 0xDDC0 and vdt[:2] == b'\x00\x00':
+            dt = vdt[2:].decode('utf8')
+        kwargs = {'dt': dt}
+        return cls(**kwargs)
+
+    def form_bin(self):
+        if not isinstance(self.dt, str):
+            return b''
+        srt = self.type.to_bytes(1, 'little')
+        vid = int.to_bytes(0xDDC0, 2, 'little')
+        dtt = int.to_bytes(0x00, 2, 'little')
+        dt = self.dt.encode('utf8')
+        srd = vid + dtt + dt
+        srl = len(srd).to_bytes(2, 'little')
+        subrec = srt + srl + srd
+        return subrec
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        if isinstance(self.dt, str):
+            s += "dt: {0}".format(self.dt)
+        else:
+            s += "Unknown format"
+        return s
 
 class EgtsSrCommandData(EgtsSubRecord):
     """Contains information about EGTS_SR_COMMAND_DATA"""
