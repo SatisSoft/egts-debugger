@@ -443,7 +443,7 @@ class EgtsSrPosData(EgtsSubRecord):
         long = (int.from_bytes(buffer[8:12], byteorder='little') * 180 / 0xffffffff) * (1 - 2 * lohs)
         spd_hi = buffer[14] & 0b00111111
         spd_lo = buffer[13]
-        speed = (spd_hi*256 + spd_lo) // 10
+        speed = (spd_hi*256 + spd_lo) / 10
         dir_hi = buffer[14] >> 7
         dir_lo = buffer[15]
         dir = dir_hi*256 + dir_lo
@@ -465,7 +465,7 @@ class EgtsSrPosData(EgtsSubRecord):
         if self.lat < 0:
             lahs = 1
         flags = lohs * 64 | lahs * 32 | self.mv * 16 | self.bb * 8 | 0x02 | self.vld
-        spd_hi = round(self.speed * 10 / 256)
+        spd_hi = round(self.speed * 10 // 256)
         spd_lo = round(self.speed * 10 % 256)
         bear_hi = round(self.dir // 256)
         bear_lo = round(self.dir % 256)
@@ -850,6 +850,7 @@ class EgtsSrExtData(EgtsSubRecord):
             s += "dt: {0}".format(self.dt)
         else:
             s += "Unknown format"
+        s += "}"
         return s
 
 class EgtsSrCommandData(EgtsSubRecord):
