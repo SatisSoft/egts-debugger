@@ -91,6 +91,7 @@ class RnisConnector:
 
     def _send_replay(self, conn, egts):
         reply = egts.reply(self.pid, self.rid)
+        conn.send(reply)
         self._pid_increment()
         self._rid_increment()
 
