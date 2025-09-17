@@ -25,6 +25,7 @@ EGTS_SR_POS_DATA = 16
 EGTS_SR_AD_SENSORS_DATA = 18
 EGTS_SR_ABS_AN_SENS_DATA = 24
 EGTS_SR_LIQUID_LEVEL_SENSOR = 27
+EGTS_SR_PASSENGERS_COUNTERS = 28
 EGTS_SR_EXT_DATA = 44
 EGTS_SR_COMMAND_DATA = 51
 # EGTS_SR_COMMAND_DATA command types
@@ -355,6 +356,8 @@ class EgtsRecord:
             return EgtsSrAbsAnSensData.parse(buff)
         elif srt == EGTS_SR_LIQUID_LEVEL_SENSOR:
             return EgtsSrLiquidLevelSensor.parse(buff)
+        elif srt == EGTS_SR_PASSENGERS_COUNTERS:
+            return EgtsSrPassengersCounters.parse(buff)
         elif srt == EGTS_SR_EXT_DATA:
             return EgtsSrExtData.parse(buff)
         else:
@@ -583,7 +586,49 @@ class EgtsSrLiquidLevelSensor(EgtsSubRecord):
         s += "llsef: {0:#b}, llsvu: {1:#04b}, rdf: {2:#b}, llsn: {3}, maddr: {4}, " \
              "llsd: {5}".format(self.llsef, self.llsvu, self.rdf, self.llsn, self.maddr, self.llsd) + "}"
         return s
-        
+
+class EgtsSrPassengersCounters(EgtsSubRecord):
+    """Contains information about EGTS_SR_PASSENGERS_COUNTERS"""
+
+    def __init__(self, srt=EGTS_SR_PASSENGERS_COUNTERS, **kwargs):
+        super().__init__(srt)
+        self.rdf = kwargs.get('rdf')
+        self.dpr = kwargs.get('dpr')
+        self.drl = kwargs.get('drl')
+        self.maddr = kwargs.get('maddr')
+        self.psd = kwargs.get('psd')
+
+    @classmethod
+    def parse(cls, buffer):
+        if len(buffer) < 7 or len(buffer) > 517:
+            raise EgtsPcInvdatalen("EGTS_SR_PASSENGERS_COUNTERS")
+        rdf = buffer[0] & 0b00000001
+        dpr = buffer[1]
+        drl = buffer[2]
+        maddr = int.from_bytes(buffer[3:5], byteorder='little', signed=False)
+        psd = buffer[5:]
+        if rdf:
+            psd = psd.decode('utf8')
+        else:
+            if dpr.bit_count() * 2 != len(psd):
+                raise EgtsPcInvdatalen("EGTS_SR_PASSENGERS_COUNTERS:PCD")
+            psddpr = []
+            for door in range(1, 9):
+                if dpr & 0b00000001 << (door - 1):
+                    psddpr.append({'IPQ' + str(door): psd[0], 'OPQ' + str(door): psd[1]})
+                    psd = psd[2:]
+            psd = psddpr
+        kwargs = {'rdf': rdf, 'dpr': dpr, 'drl': drl, 'maddr': maddr, 'psd': psd}
+        return cls(**kwargs)
+
+    def subrecord_to_string(self):
+        s = "{" + super().subrecord_to_string() + ", "
+        if self.rdf:
+            s += "rdf: {0}, maddr: {1}, psd: '{2}'".format(self.rdf, self.maddr, self.psd)
+        else:
+            s += "rdf: {0}, dpr: {1:08b}, drl: {2:08b}, maddr: {3}, psd: {4}".format(self.rdf, self.dpr, self.drl, self.maddr, self.psd)
+        s += "}"
+        return s
 
 class UnknownSubRecord(EgtsSubRecord):
     """Contains information about subrecord unknown by egts-debugger"""
