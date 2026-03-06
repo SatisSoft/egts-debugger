@@ -6,6 +6,10 @@ class IncorrectNumberOfDispIdentity(ValueError):
     pass
 
 
+class IncorrectNumberOfTermIdentity(ValueError):
+    pass
+
+
 class IncorrectFirstPacket(ValueError):
     pass
 
@@ -23,7 +27,7 @@ class IncorrectResponsePacket(ValueError):
 class EgtsClientDebugger:
     """Provides functional for testing EGTS client"""
 
-    def __init__(self, host, port, num, dispatcher):
+    def __init__(self, host, port, num, dispatcher, imei):
         self.host = host
         self.port = port
         self.num = 0
@@ -31,6 +35,7 @@ class EgtsClientDebugger:
         self.pid = 0
         self.rid = 0
         self.did = dispatcher
+        self.imei = imei
 
     def start_listening(self):
         s = socket.socket()
@@ -48,6 +53,10 @@ class EgtsClientDebugger:
                 print(
                     "ERROR. EGTS connection test failed: The first packet must contain one "
                     "EGTS_SR_DISPATCHER_IDENTITY subrecord.")
+            except IncorrectNumberOfTermIdentity:
+                print(
+                    "ERROR. EGTS connection test failed: The first packet must contain one "
+                    "EGTS_SR_TERM_IDENTITY subrecord.")
             except IncorrectFirstPacket:
                 print("ERROR. First packet is incorrect.")
             except IncorrectNavPacket:
@@ -114,6 +123,19 @@ class EgtsClientDebugger:
 
     def _validate_first_packet(self, data):
         egts = Egts(data)
+        if self.imei:
+            subs = self._found_terminal_identity(egts.records)
+            if len(subs) == 1:
+                [sub] = subs
+                if self._validate_terminal_identity_sub(sub, self.imei):
+                    print("First packet is correct:", egts)
+                    return egts
+                else:
+                    print("Error validating first packet:", egts)
+                    raise IncorrectFirstPacket
+            else:
+                print("Error validating first packet:", egts)
+                raise IncorrectNumberOfTermIdentity
         if self.did < 0:
             subs = self._found_dispatcher_identity(egts.records)
             if len(subs) > 1:
@@ -177,6 +199,22 @@ class EgtsClientDebugger:
             return False
         if sub.did != did:
             print("Expected Dispatcher ID =", did, "but got", sub.did)
+            return False
+        return True
+
+    @staticmethod
+    def _found_terminal_identity(records):
+        subs = []
+        for record in records:
+            for sub in record.subrecords:
+                if type(sub) is EgtsSrTermIdentity:
+                    subs.append(sub)
+        return subs
+
+    @staticmethod
+    def _validate_terminal_identity_sub(sub, imei):
+        if sub.imei != imei:
+            print("Expected IMEI =", imei, "but got", sub.imei)
             return False
         return True
 
